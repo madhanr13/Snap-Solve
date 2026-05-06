@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "SnapSolve",
+    "slug": "snapsolve",
+    "version": "1.0.0",
+    "scheme": "snapsolve",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTabletMode": true,
+      "bundleIdentifier": "com.snapsolve.app"
+    },
+    "android": {
+      "package": "com.snapsolve.app"
+    }
+  }
+}

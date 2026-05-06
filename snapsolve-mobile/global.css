@@ -1,0 +1,25 @@
+/**
+ * Root Layout for NativeWind Tailwind styling
+ */
+
+import { View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import '../global.css';
+
+export default function RootLayout() {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View
+      style={{
+        flex: 1,
+        paddingTop: insets.top,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+        paddingBottom: insets.bottom,
+      }}
+    >
+      {/* App content */}
+    </View>
+  );
+}
