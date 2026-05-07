@@ -1,238 +1,155 @@
 /**
- * Results Dashboard - Displays the repair analysis from the backend.
- * Shows problem identification, viability score, safety warning, materials, and step-by-step guide.
+ * Results Content — theme-aware repair guide display.
+ * Human copy: "What went wrong", "How likely is this to work?", "Heads up", etc.
  */
 
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
-import { AlertCircle, CheckCircle2, Zap } from 'lucide-react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, ScrollView, StyleSheet, Animated } from 'react-native';
+import { AlertTriangle, CheckCircle2, Zap, Wrench, ShieldAlert, ListChecks } from 'lucide-react-native';
+import { useTheme } from '../utils/ThemeContext';
 import type { RepairAnalysis } from '../utils/api';
 
-interface ResultsScreenProps {
+interface Props {
   analysis: RepairAnalysis;
 }
 
-export function ResultsContent({ analysis }: ResultsScreenProps) {
-  // Determine viability color based on score
-  const getViabilityColor = (score: number) => {
-    if (score >= 70) return { bg: '#dcfce7', border: '#22c55e', text: '#166534', label: 'High Viability' };
-    if (score >= 40) return { bg: '#fef3c7', border: '#eab308', text: '#854d0e', label: 'Moderate Viability' };
-    return { bg: '#fee2e2', border: '#ef4444', text: '#7f1d1d', label: 'Low Viability' };
+export function ResultsContent({ analysis }: Props) {
+  const { colors, isDark } = useTheme();
+
+  const getViability = (score: number) => {
+    if (score >= 70) return { bg: colors.successSoft, border: colors.success, text: isDark ? '#4ade80' : '#166534', label: 'Looking good', barColor: colors.success };
+    if (score >= 40) return { bg: colors.warningSoft, border: colors.warning, text: isDark ? '#fbbf24' : '#854d0e', label: 'Worth a shot', barColor: colors.warning };
+    return { bg: colors.dangerSoft, border: colors.danger, text: isDark ? '#f87171' : '#991b1b', label: 'Risky', barColor: colors.danger };
   };
 
-  const viability = getViabilityColor(analysis.viability_score);
+  const v = getViability(analysis.viability_score);
+
+  // Animated progress bar
+  const barAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(barAnim, { toValue: analysis.viability_score, duration: 900, useNativeDriver: false }).start();
+  }, [analysis.viability_score]);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <ScrollView style={[s.container, { backgroundColor: colors.bg }]} contentContainerStyle={s.content}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Repair Analysis</Text>
-        <Text style={styles.subtitle}>Step-by-step temporary fix guide</Text>
+      <View style={s.header}>
+        <Text style={[s.title, { color: colors.text }]}>Here's your fix</Text>
+        <Text style={[s.subtitle, { color: colors.textSecondary }]}>Based on what we saw, here's what to do</Text>
       </View>
 
-      {/* Problem Identified Card */}
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Zap size={20} color="#1e293b" strokeWidth={2} />
-          <Text style={styles.cardTitle}>Problem Identified</Text>
+      {/* What went wrong */}
+      <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={s.cardRow}>
+          <View style={[s.badge, { backgroundColor: isDark ? '#1e3a5f' : '#eff6ff' }]}>
+            <Zap size={16} color={colors.accent} strokeWidth={2} />
+          </View>
+          <Text style={[s.cardLabel, { color: colors.text }]}>What went wrong</Text>
         </View>
-        <Text style={styles.cardContent}>{analysis.problem_identified}</Text>
+        <Text style={[s.cardBody, { color: colors.textSecondary }]}>{analysis.problem_identified}</Text>
       </View>
 
-      {/* Viability Score Card - Dynamic Color Coding */}
-      <View
-        style={[
-          styles.card,
-          styles.viabilityCard,
-          { backgroundColor: viability.bg, borderColor: viability.border },
-        ]}
-      >
-        <View style={styles.cardHeader}>
-          <CheckCircle2 size={20} color={viability.text} strokeWidth={2} />
-          <Text style={[styles.cardTitle, { color: viability.text }]}>
-            Viability: {viability.label}
+      {/* How likely is this to work? */}
+      <View style={[s.card, { backgroundColor: v.bg, borderColor: v.border }]}>
+        <View style={s.cardRow}>
+          <View style={[s.badge, { backgroundColor: 'rgba(255,255,255,0.3)' }]}>
+            <CheckCircle2 size={16} color={v.text} strokeWidth={2} />
+          </View>
+          <Text style={[s.cardLabel, { color: v.text }]}>
+            How likely is this to work? — {v.label}
           </Text>
         </View>
-        <Text style={[styles.viabilityScore, { color: viability.text }]}>
-          {analysis.viability_score}%
-        </Text>
-      </View>
-
-      {/* Safety Warning Card - Soft Red, Bold Border */}
-      <View style={[styles.card, styles.safetyCard]}>
-        <View style={styles.cardHeader}>
-          <AlertCircle size={20} color="#b91c1c" strokeWidth={2} />
-          <Text style={[styles.cardTitle, { color: '#7f1d1d' }]}>
-            Safety Warning
-          </Text>
-        </View>
-        <Text style={[styles.cardContent, { color: '#7f1d1d' }]}>
-          {analysis.safety_warning}
-        </Text>
-      </View>
-
-      {/* Selected Materials Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Materials Needed</Text>
-        <View style={styles.materialsList}>
-          {analysis.selected_materials.map((material, idx) => (
-            <View key={`material-${idx}`} style={styles.materialItem}>
-              <Text style={styles.bulletPoint}>•</Text>
-              <Text style={styles.materialText}>{material}</Text>
-            </View>
-          ))}
+        <View style={s.scoreRow}>
+          <Text style={[s.scoreNum, { color: v.text }]}>{analysis.viability_score}%</Text>
+          <View style={[s.progressTrack, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }]}>
+            <Animated.View
+              style={[s.progressFill, { backgroundColor: v.barColor, width: barAnim.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }) }]}
+            />
+          </View>
         </View>
       </View>
 
-      {/* Steps Checklist */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Repair Steps</Text>
-        <View style={styles.stepsList}>
-          {analysis.steps.map((step, idx) => (
-            <View key={`step-${idx}`} style={styles.stepItem}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>{idx + 1}</Text>
+      {/* Heads up */}
+      <View style={[s.card, s.warningCard, { backgroundColor: colors.dangerSoft, borderColor: colors.danger }]}>
+        <View style={s.cardRow}>
+          <View style={[s.badge, { backgroundColor: isDark ? '#450a0a' : '#fef2f2' }]}>
+            <AlertTriangle size={16} color={colors.danger} strokeWidth={2} />
+          </View>
+          <Text style={[s.cardLabel, { color: isDark ? colors.danger : '#991b1b' }]}>Heads up</Text>
+        </View>
+        <Text style={[s.cardBody, { color: isDark ? '#fca5a5' : '#991b1b' }]}>{analysis.safety_warning}</Text>
+      </View>
+
+      {/* You'll need */}
+      <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={s.cardRow}>
+          <View style={[s.badge, { backgroundColor: isDark ? '#052e16' : '#f0fdf4' }]}>
+            <ListChecks size={16} color={colors.success} strokeWidth={2} />
+          </View>
+          <Text style={[s.cardLabel, { color: colors.text }]}>You'll need</Text>
+        </View>
+        {analysis.selected_materials.map((mat, i) => (
+          <View key={i} style={s.matRow}>
+            <View style={[s.matDot, { backgroundColor: colors.success }]} />
+            <Text style={[s.matText, { color: colors.textSecondary }]}>{mat}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Here's what to do */}
+      <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={s.cardRow}>
+          <View style={[s.badge, { backgroundColor: isDark ? '#2e1065' : '#faf5ff' }]}>
+            <Wrench size={16} color={isDark ? '#a78bfa' : '#7c3aed'} strokeWidth={2} />
+          </View>
+          <Text style={[s.cardLabel, { color: colors.text }]}>Here's what to do</Text>
+        </View>
+        {analysis.steps.map((step, i) => (
+          <View key={i} style={s.stepRow}>
+            <View style={s.stepLeft}>
+              <View style={[s.stepCircle, { backgroundColor: colors.accent }]}>
+                <Text style={s.stepNum}>{i + 1}</Text>
               </View>
-              <Text style={styles.stepText}>{step}</Text>
+              {i < analysis.steps.length - 1 && <View style={[s.stepLine, { backgroundColor: colors.border }]} />}
             </View>
-          ))}
-        </View>
+            <Text style={[s.stepText, { color: colors.textSecondary }]}>{step}</Text>
+          </View>
+        ))}
       </View>
 
-      {/* Footer spacing */}
-      <View style={styles.footerSpacing} />
+      <View style={{ height: 40 }} />
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc', // Very light gray background
-  },
-  contentContainer: {
-    padding: 16,
-  },
-  header: {
-    marginBottom: 24,
-    marginTop: 8,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#0f172a', // Near black, slate-900
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#64748b', // Slate-500
-    marginTop: 4,
-  },
+const s = StyleSheet.create({
+  container: { flex: 1 },
+  content: { padding: 16 },
+  header: { marginBottom: 16, marginTop: 4 },
+  title: { fontSize: 24, fontWeight: '700', letterSpacing: -0.5 },
+  subtitle: { fontSize: 14, marginTop: 4 },
 
-  // Card Styles
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#1e293b', // Default dark slate
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1e293b',
-    marginLeft: 10,
-  },
-  cardContent: {
-    fontSize: 14,
-    color: '#334155', // Slate-700
-    lineHeight: 20,
-  },
+  badge: { width: 30, height: 30, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
 
-  // Viability Card
-  viabilityCard: {
-    borderLeftWidth: 0,
-    borderWidth: 2,
-  },
-  viabilityScore: {
-    fontSize: 36,
-    fontWeight: '700',
-    marginTop: 8,
-  },
+  card: { borderRadius: 14, padding: 16, marginBottom: 10, borderWidth: 1 },
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  cardLabel: { fontSize: 14, fontWeight: '600', flex: 1 },
+  cardBody: { fontSize: 14, lineHeight: 21 },
+  warningCard: { borderLeftWidth: 4 },
 
-  // Safety Card
-  safetyCard: {
-    backgroundColor: '#fef2f2', // Red-50
-    borderLeftColor: '#dc2626', // Red-600
-  },
+  scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  scoreNum: { fontSize: 30, fontWeight: '800' },
+  progressTrack: { flex: 1, height: 8, borderRadius: 4, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 4 },
 
-  // Materials List
-  materialsList: {
-    marginTop: 8,
-  },
-  materialItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    marginLeft: 4,
-  },
-  bulletPoint: {
-    fontSize: 18,
-    color: '#64748b',
-    marginRight: 8,
-    fontWeight: '600',
-  },
-  materialText: {
-    fontSize: 14,
-    color: '#334155',
-    flex: 1,
-  },
+  matRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
+  matDot: { width: 6, height: 6, borderRadius: 3, marginRight: 10 },
+  matText: { fontSize: 14, flex: 1 },
 
-  // Steps List
-  stepsList: {
-    marginTop: 8,
-  },
-  stepItem: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    alignItems: 'flex-start',
-  },
-  stepNumber: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#e2e8f0', // Slate-200
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-    marginTop: 2,
-  },
-  stepNumberText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1e293b',
-  },
-  stepText: {
-    fontSize: 14,
-    color: '#334155',
-    lineHeight: 20,
-    flex: 1,
-    paddingTop: 2,
-  },
-
-  // Footer
-  footerSpacing: {
-    height: 40,
-  },
+  stepRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  stepLeft: { alignItems: 'center', marginRight: 12 },
+  stepCircle: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  stepNum: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  stepLine: { width: 2, height: 16, marginVertical: 3 },
+  stepText: { fontSize: 14, lineHeight: 21, flex: 1, paddingTop: 4, paddingBottom: 14 },
 });

@@ -1,9 +1,14 @@
 import axios, { AxiosInstance } from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * API utility for communicating with the SnapSolve backend.
- * Handles image compression, base64 encoding, and repair analysis requests.
+ *
+ * IMPORTANT: Set USE_MOCK to true ONLY for offline development/testing.
+ * When false, all API errors are surfaced to the user (no silent fallbacks).
  */
+
+const USE_MOCK = false;
 
 interface RepairAnalysis {
   problem_identified: string;
@@ -14,9 +19,76 @@ interface RepairAnalysis {
 }
 
 interface AnalyzeRepairRequest {
-  image_problem: string; // Base64 string
-  image_inventory: string; // Base64 string
+  image_problem: string;
+  image_inventory: string;
+  preferred_model?: string;
 }
+
+// ── History management ──────────────────────────────────────────────
+
+export interface HistoryItem {
+  id: string;
+  timestamp: number;
+  problem: string;
+  score: number;
+  analysis: RepairAnalysis;
+}
+
+const HISTORY_KEY = '@snapsolve_history';
+const MAX_HISTORY = 20;
+
+export async function saveToHistory(analysis: RepairAnalysis): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(HISTORY_KEY);
+    const history: HistoryItem[] = raw ? JSON.parse(raw) : [];
+    history.unshift({
+      id: Date.now().toString(),
+      timestamp: Date.now(),
+      problem: analysis.problem_identified,
+      score: analysis.viability_score,
+      analysis,
+    });
+    await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, MAX_HISTORY)));
+  } catch (e) {
+    console.error('[History] Failed to save:', e);
+  }
+}
+
+export async function getHistory(): Promise<HistoryItem[]> {
+  try {
+    const raw = await AsyncStorage.getItem(HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function clearHistory(): Promise<void> {
+  await AsyncStorage.removeItem(HISTORY_KEY);
+}
+
+// ── Model preference ────────────────────────────────────────────────
+
+const MODEL_KEY = '@snapsolve_model';
+
+export async function getPreferredModel(): Promise<string | null> {
+  return AsyncStorage.getItem(MODEL_KEY);
+}
+
+export async function setPreferredModel(model: string): Promise<void> {
+  await AsyncStorage.setItem(MODEL_KEY, model);
+}
+
+// Available models the user can choose from
+export const AVAILABLE_MODELS = [
+  { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', tag: 'Fastest' },
+  { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', tag: '' },
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', tag: '' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', tag: 'Recommended' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', tag: 'Best quality' },
+];
+
+// ── API Client ──────────────────────────────────────────────────────
 
 class SnapSolveAPI {
   private client: AxiosInstance;
@@ -26,71 +98,51 @@ class SnapSolveAPI {
     this.baseURL = baseURL;
     this.client = axios.create({
       baseURL: this.baseURL,
-      timeout: 60000, // 60s timeout for image analysis
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      timeout: 90000,
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 
-  /**
-   * Send two base64-encoded images to the backend for repair analysis.
-   * @param imageProblem - Base64 string of broken object
-   * @param imageInventory - Base64 string of available materials
-   * @returns RepairAnalysis object with repair guide
-   */
   async analyzeRepair(
     imageProblem: string,
     imageInventory: string
   ): Promise<RepairAnalysis> {
+    if (USE_MOCK) {
+      console.log('[API] Mock mode — returning test data');
+      return MOCK_RESPONSE;
+    }
+
     try {
+      // Read preferred model from storage
+      const preferredModel = await getPreferredModel();
+
       const payload: AnalyzeRepairRequest = {
         image_problem: imageProblem,
         image_inventory: imageInventory,
+        ...(preferredModel && { preferred_model: preferredModel }),
       };
 
-      console.log(`[API] Sending request to: ${this.baseURL}/api/analyze-repair`);
+      console.log(`[API] Sending to ${this.baseURL}/api/analyze-repair (model: ${preferredModel || 'auto'})`);
 
-      const response = await this.client.post<RepairAnalysis>(
-        '/api/analyze-repair',
-        payload
-      );
-
-      console.log('[API] Analysis successful');
+      const response = await this.client.post<RepairAnalysis>('/api/analyze-repair', payload);
+      console.log('[API] Success');
       return response.data;
     } catch (error) {
-      console.error('[API] Error caught:', error);
-      
-      // Check if it's a network error
-      const isNetworkError = 
-        error instanceof Error && (
-          error.message.includes('Network Error') || 
+      const isNetworkError =
+        error instanceof Error &&
+        (error.message.includes('Network Error') ||
           error.message.includes('ECONNREFUSED') ||
           error.message.includes('ENOTFOUND') ||
-          error.message.includes('timeout')
-        );
+          error.message.includes('timeout'));
 
       if (isNetworkError) {
-        console.log('[API] Network error detected - using mock response for testing');
-        return MOCK_RESPONSE;
+        throw new Error('Can\'t reach the server. Check that the backend is running.');
       }
 
-      // Handle Axios errors
       if (axios.isAxiosError(error)) {
         const status = error.response?.status || 'unknown';
         const detail = error.response?.data?.detail || error.message;
-        console.error('[API] Axios error status:', status);
-        console.error('[API] Axios error detail:', detail);
-        
-        // If it's a 500 error, use mock response (likely a backend/API issue)
-        if (status === 500) {
-          console.log('[API] Server error (500) - using mock response for testing');
-          return MOCK_RESPONSE;
-        }
-        
-        const errorMsg = `API Error: ${status} - ${detail}`;
-        console.error('[API] Final error:', errorMsg);
-        throw new Error(errorMsg);
+        throw new Error(`Server error (${status}): ${detail}`);
       }
 
       throw error;
@@ -100,23 +152,19 @@ class SnapSolveAPI {
 
 export const api = new SnapSolveAPI('http://172.25.37.124:8000');
 
-/**
- * Mock response for testing when backend is unreachable.
- * Comment out if you want to use the real backend.
- */
 const MOCK_RESPONSE: RepairAnalysis = {
   problem_identified: 'Broken ceramic mug with clean fracture at the handle',
   viability_score: 72,
-  safety_warning: 'Avoid using this repair for hot liquids - the adhesive may weaken over time.',
+  safety_warning: 'Avoid using this repair for hot liquids.',
   selected_materials: ['Two-part epoxy adhesive', 'Masking tape', 'Sandpaper'],
   steps: [
-    'Clean both fractured surfaces with dry cloth to remove dust',
+    'Clean both fractured surfaces with dry cloth',
     'Apply two-part epoxy according to package instructions',
     'Align the handle carefully and hold for 30 seconds',
     'Use masking tape to stabilize if needed',
     'Let cure for 24 hours before using',
-    'Sand smooth any excess epoxy with fine sandpaper'
-  ]
+    'Sand smooth any excess epoxy with fine sandpaper',
+  ],
 };
 
 export type { RepairAnalysis, AnalyzeRepairRequest };

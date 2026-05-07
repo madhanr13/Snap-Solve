@@ -1,79 +1,77 @@
 /**
- * Screen 3: Results Dashboard
- * Displays the repair analysis from the backend.
- * Shows problem identification, viability score, safety warning, materials, and step-by-step guide.
+ * Results Screen — "Here's your fix" (Step 3 of 3)
+ * Uses useFocusEffect to reload analysis when navigated to from history.
  */
 
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  SafeAreaView,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, SafeAreaView, StyleSheet, TouchableOpacity, Alert, Share } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { RotateCcw } from 'lucide-react-native';
+import { RotateCcw, Share2, Wrench } from 'lucide-react-native';
 import { ResultsContent } from '../../components/ResultsContent';
+import { useTheme } from '../../utils/ThemeContext';
 import type { RepairAnalysis } from '../../utils/api';
 
 export default function ResultsScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
   const [analysis, setAnalysis] = useState<RepairAnalysis | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    loadAnalysis();
-  }, []);
+  // Reload every time this tab gains focus (so history taps work)
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem('repairAnalysis')
+        .then((stored) => setAnalysis(stored ? JSON.parse(stored) : null))
+        .catch(() => Alert.alert('Error', 'Failed to load repair guide'));
+    }, [])
+  );
 
-  /**
-   * Load the repair analysis from AsyncStorage.
-   * If not found, show empty state.
-   */
-  const loadAnalysis = async () => {
-    try {
-      const stored = await AsyncStorage.getItem('repairAnalysis');
-      if (stored) {
-        setAnalysis(JSON.parse(stored));
-      }
-    } catch (error) {
-      console.error('Failed to load analysis:', error);
-      Alert.alert('Error', 'Failed to load repair analysis');
-    } finally {
-      setIsLoading(false);
-    }
+  const handleShare = async () => {
+    if (!analysis) return;
+    const text =
+      `🔧 SnapSolve Fix\n\n` +
+      `Problem: ${analysis.problem_identified}\n` +
+      `Viability: ${analysis.viability_score}%\n\n` +
+      `⚠️ ${analysis.safety_warning}\n\n` +
+      `You'll need:\n${analysis.selected_materials.map((m) => `• ${m}`).join('\n')}\n\n` +
+      `Steps:\n${analysis.steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n\n` +
+      `— via SnapSolve`;
+    try { await Share.share({ message: text }); } catch (_) {}
   };
 
-  /**
-   * Clear analysis and return to the first camera screen.
-   */
-  const handleNewAnalysis = async () => {
-    try {
-      await AsyncStorage.removeItem('repairAnalysis');
-      await AsyncStorage.removeItem('problemImageBase64');
-      setAnalysis(null);
-      router.push('/(tabs)/index');
-    } catch (error) {
-      console.error('Failed to reset:', error);
-    }
+  const handleNew = () => {
+    Alert.alert('Start fresh?', 'This will clear the current repair guide.', [
+      { text: 'Keep it', style: 'cancel' },
+      {
+        text: 'Start over',
+        style: 'destructive',
+        onPress: async () => {
+          await AsyncStorage.multiRemove(['repairAnalysis', 'problemImageBase64', 'problemImageUri']);
+          setAnalysis(null);
+          router.push('/(tabs)/');
+        },
+      },
+    ]);
   };
 
-  // Empty state
-  if (isLoading || !analysis) {
+  if (!analysis) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No Repair Analysis Yet</Text>
-          <Text style={styles.emptyText}>
-            Capture a broken object and available materials to generate a repair guide.
+      <SafeAreaView style={[s.container, { backgroundColor: colors.bg }]}>
+        <View style={s.empty}>
+          <View style={[s.emptyIcon, { backgroundColor: colors.surfaceAlt }]}>
+            <Wrench size={40} color={colors.textMuted} strokeWidth={1.5} />
+          </View>
+          <Text style={[s.emptyTitle, { color: colors.text }]}>No fix yet</Text>
+          <Text style={[s.emptyDesc, { color: colors.textSecondary }]}>
+            Snap a photo of the damage and your materials to get a repair guide.
           </Text>
           <TouchableOpacity
-            style={styles.startButton}
-            onPress={() => router.push('/(tabs)/index')}
+            style={[s.emptyBtn, { backgroundColor: colors.accent }]}
+            onPress={() => router.push('/(tabs)/')}
+            activeOpacity={0.8}
           >
-            <Text style={styles.startButtonText}>Start Analysis</Text>
+            <Text style={s.emptyBtnText}>Go home</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -81,80 +79,39 @@ export default function ResultsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>Repair Guide</Text>
-        <TouchableOpacity
-          style={styles.refreshButton}
-          onPress={handleNewAnalysis}
-        >
-          <RotateCcw size={20} color="#1e293b" strokeWidth={2} />
+    <SafeAreaView style={[s.container, { backgroundColor: colors.bg }]}>
+      <View style={[s.bar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <TouchableOpacity style={[s.barBtn, { borderColor: colors.border }]} onPress={handleShare} activeOpacity={0.7}>
+          <Share2 size={15} color={colors.textSecondary} strokeWidth={2} />
+          <Text style={[s.barBtnText, { color: colors.textSecondary }]}>Share</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[s.barBtn, s.barBtnPrimary]} onPress={handleNew} activeOpacity={0.7}>
+          <RotateCcw size={15} color="#fff" strokeWidth={2} />
+          <Text style={s.barBtnPrimaryText}>New fix</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Results Content Component */}
       <ResultsContent analysis={analysis} />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
+const s = StyleSheet.create({
+  container: { flex: 1 },
+  bar: {
+    flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 8, gap: 8, borderBottomWidth: 1,
   },
-
-  // Header
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    backgroundColor: '#ffffff',
+  barBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1e293b',
-  },
-  refreshButton: {
-    padding: 8,
-  },
-
-  // Empty State
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  emptyTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1e293b',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#64748b',
-    textAlign: 'center',
-    marginBottom: 32,
-    lineHeight: 20,
-  },
-  startButton: {
-    backgroundColor: '#1e293b',
-    paddingHorizontal: 40,
-    paddingVertical: 14,
-    borderRadius: 8,
-  },
-  startButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
+  barBtnText: { fontSize: 13, fontWeight: '600' },
+  barBtnPrimary: { backgroundColor: '#1c1917', borderColor: '#1c1917' },
+  barBtnPrimaryText: { fontSize: 13, fontWeight: '600', color: '#fff' },
+  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  emptyIcon: { width: 88, height: 88, borderRadius: 44, justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
+  emptyTitle: { fontSize: 22, fontWeight: '700', marginBottom: 10, textAlign: 'center' },
+  emptyDesc: { fontSize: 14, textAlign: 'center', marginBottom: 32, lineHeight: 21 },
+  emptyBtn: { paddingHorizontal: 40, paddingVertical: 14, borderRadius: 14 },
+  emptyBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

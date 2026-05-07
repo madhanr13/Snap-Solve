@@ -1,11 +1,12 @@
 """
 SnapSolve Backend - FastAPI server for AI-powered repair analysis.
-Accepts two base64-encoded images and uses Google Gemini 1.5 Flash 
+Accepts two base64-encoded images and uses Google Gemini
 to generate a safe temporary repair guide using only available materials.
 """
 
 import json
 import os
+import time
 from typing import Optional
 
 import google.generativeai as genai
@@ -48,6 +49,7 @@ class AnalyzeRepairRequest(BaseModel):
     """Request payload containing two base64-encoded images."""
     image_problem: str  # Base64 string of broken object
     image_inventory: str  # Base64 string of available materials
+    preferred_model: Optional[str] = None  # Optional model override from frontend
 
 
 # Pydantic model for response validation
@@ -96,71 +98,108 @@ async def analyze_repair(request: AnalyzeRepairRequest) -> RepairAnalysis:
     Raises:
         HTTPException: If API call fails or response is invalid JSON.
     """
-    try:
-        # Initialize the Gemini model (gemini-pro is universally available)
-        model = genai.GenerativeModel(model_name="gemini-pro")
+    # Models to try in order — if one is rate-limited, fall back to the next.
+    DEFAULT_MODELS = [
+        "gemini-2.5-flash-lite",
+        "gemini-2.0-flash-lite",
+        "gemini-2.0-flash",
+    ]
 
-        # Prepare the prompt with both images
-        # Gemini expects base64 images with a data: URI prefix and media type
-        content = [
-            SYSTEM_PROMPT,
-            {
-                "mime_type": "image/jpeg",
-                "data": request.image_problem,
-            },
-            {
-                "mime_type": "image/jpeg",
-                "data": request.image_inventory,
-            },
-        ]
+    # If client sent a preferred model, put it first in the queue
+    if request.preferred_model:
+        MODELS = [request.preferred_model] + [m for m in DEFAULT_MODELS if m != request.preferred_model]
+    else:
+        MODELS = DEFAULT_MODELS
 
-        # Call the Gemini API
-        response = model.generate_content(content)
+    # Prepare the prompt with both images
+    content = [
+        SYSTEM_PROMPT,
+        {
+            "mime_type": "image/jpeg",
+            "data": request.image_problem,
+        },
+        {
+            "mime_type": "image/jpeg",
+            "data": request.image_inventory,
+        },
+    ]
 
-        # Extract the response text
-        response_text = response.text.strip()
+    last_error = None
 
-        # Remove markdown code blocks if they exist (defensive parsing)
-        if response_text.startswith("```json"):
-            response_text = response_text[7:]  # Remove ```json prefix
-        if response_text.startswith("```"):
-            response_text = response_text[3:]  # Remove ``` prefix
-        if response_text.endswith("```"):
-            response_text = response_text[:-3]  # Remove ``` suffix
-
-        # Parse the JSON response
+    for model_name in MODELS:
         try:
-            parsed_response = json.loads(response_text)
-        except json.JSONDecodeError as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to parse LLM response as JSON: {str(e)}"
+            model = genai.GenerativeModel(model_name=model_name)
+
+            # Retry up to 2 times for transient 429 rate-limit errors
+            for attempt in range(3):
+                try:
+                    response = model.generate_content(content)
+                    break  # Success — exit retry loop
+                except Exception as retry_err:
+                    if "429" in str(retry_err) and attempt < 2:
+                        wait = (attempt + 1) * 10  # 10s, 20s backoff
+                        print(f"[SnapSolve] 429 on {model_name}, retrying in {wait}s (attempt {attempt+1}/3)")
+                        time.sleep(wait)
+                        continue
+                    raise  # Not a 429, or final attempt — propagate
+
+            # Extract and clean the response text
+            response_text = response.text.strip()
+
+            # Remove markdown code blocks if present (defensive parsing)
+            if response_text.startswith("```json"):
+                response_text = response_text[7:]
+            if response_text.startswith("```"):
+                response_text = response_text[3:]
+            if response_text.endswith("```"):
+                response_text = response_text[:-3]
+
+            response_text = response_text.strip()
+
+            # Parse the JSON response
+            try:
+                parsed_response = json.loads(response_text)
+            except json.JSONDecodeError as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to parse LLM response as JSON: {str(e)}"
+                )
+
+            # Validate and clamp viability_score to 0-100
+            viability_score = int(parsed_response.get("viability_score", 50))
+            viability_score = max(0, min(100, viability_score))
+
+            analysis = RepairAnalysis(
+                problem_identified=parsed_response.get("problem_identified", ""),
+                viability_score=viability_score,
+                safety_warning=parsed_response.get("safety_warning", ""),
+                selected_materials=parsed_response.get("selected_materials", []),
+                steps=parsed_response.get("steps", []),
             )
 
-        # Validate and construct the RepairAnalysis object
-        # Ensure viability_score is an integer between 0-100
-        viability_score = int(parsed_response.get("viability_score", 50))
-        viability_score = max(0, min(100, viability_score))
+            print(f"[SnapSolve] Success with model: {model_name}")
+            return analysis
 
-        analysis = RepairAnalysis(
-            problem_identified=parsed_response.get("problem_identified", ""),
-            viability_score=viability_score,
-            safety_warning=parsed_response.get("safety_warning", ""),
-            selected_materials=parsed_response.get("selected_materials", []),
-            steps=parsed_response.get("steps", []),
-        )
+        except HTTPException:
+            raise
+        except Exception as e:
+            last_error = e
+            error_str = str(e)
+            # If it's a quota / rate-limit error, try the next model
+            if "429" in error_str or "quota" in error_str.lower():
+                print(f"[SnapSolve] Quota exhausted on {model_name}, trying next model...")
+                continue
+            # For any other error, fail immediately
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error analyzing repair: {error_str}"
+            )
 
-        return analysis
-
-    except HTTPException:
-        # Re-raise HTTP exceptions
-        raise
-    except Exception as e:
-        # Catch any other errors and return a 500 response
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error analyzing repair: {str(e)}"
-        )
+    # All models exhausted
+    raise HTTPException(
+        status_code=429,
+        detail=f"All AI models are rate-limited. Please wait a minute and try again. Last error: {str(last_error)}"
+    )
 
 
 # Run the server: uvicorn main:app --reload
