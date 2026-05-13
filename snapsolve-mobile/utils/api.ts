@@ -12,15 +12,17 @@ const USE_MOCK = false;
 
 interface RepairAnalysis {
   problem_identified: string;
-  viability_score: number;
+  difficulty: string;
+  estimated_time: string;
   safety_warning: string;
   selected_materials: string[];
   steps: string[];
 }
 
 interface AnalyzeRepairRequest {
-  image_problem: string;
-  image_inventory: string;
+  image_problem?: string;
+  image_inventory?: string;
+  text_description?: string;
   preferred_model?: string;
 }
 
@@ -30,7 +32,7 @@ export interface HistoryItem {
   id: string;
   timestamp: number;
   problem: string;
-  score: number;
+  difficulty?: string;
   analysis: RepairAnalysis;
 }
 
@@ -45,7 +47,7 @@ export async function saveToHistory(analysis: RepairAnalysis): Promise<void> {
       id: Date.now().toString(),
       timestamp: Date.now(),
       problem: analysis.problem_identified,
-      score: analysis.viability_score,
+      difficulty: analysis.difficulty,
       analysis,
     });
     await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, MAX_HISTORY)));
@@ -65,6 +67,41 @@ export async function getHistory(): Promise<HistoryItem[]> {
 
 export async function clearHistory(): Promise<void> {
   await AsyncStorage.removeItem(HISTORY_KEY);
+}
+
+// ── Repair Stats ────────────────────────────────────────────────────
+
+export interface RepairStats {
+  total: number;
+  thisWeek: number;
+  streak: number; // consecutive days with at least one fix
+}
+
+export async function getRepairStats(): Promise<RepairStats> {
+  const history = await getHistory();
+  const now = Date.now();
+  const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const thisWeek = history.filter((h) => h.timestamp > weekAgo).length;
+
+  // Calculate streak (consecutive days from today going backwards)
+  let streak = 0;
+  if (history.length > 0) {
+    const daySet = new Set(
+      history.map((h) => new Date(h.timestamp).toDateString())
+    );
+    const today = new Date();
+    for (let i = 0; i < 365; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      if (daySet.has(d.toDateString())) {
+        streak++;
+      } else if (i > 0) {
+        break;
+      }
+    }
+  }
+
+  return { total: history.length, thisWeek, streak };
 }
 
 // ── Model preference ────────────────────────────────────────────────
@@ -113,48 +150,78 @@ class SnapSolveAPI {
     }
 
     try {
-      // Read preferred model from storage
       const preferredModel = await getPreferredModel();
-
       const payload: AnalyzeRepairRequest = {
         image_problem: imageProblem,
         image_inventory: imageInventory,
         ...(preferredModel && { preferred_model: preferredModel }),
       };
-
       console.log(`[API] Sending to ${this.baseURL}/api/analyze-repair (model: ${preferredModel || 'auto'})`);
-
       const response = await this.client.post<RepairAnalysis>('/api/analyze-repair', payload);
       console.log('[API] Success');
       return response.data;
     } catch (error) {
-      const isNetworkError =
-        error instanceof Error &&
-        (error.message.includes('Network Error') ||
-          error.message.includes('ECONNREFUSED') ||
-          error.message.includes('ENOTFOUND') ||
-          error.message.includes('timeout'));
+      this.handleError(error);
+      throw error; // unreachable but keeps TS happy
+    }
+  }
 
-      if (isNetworkError) {
-        throw new Error('Can\'t reach the server. Check that the backend is running.');
-      }
+  /** Feature 4: Text-only mode — describe the problem instead of using a photo */
+  async analyzeRepairText(
+    textDescription: string,
+    imageInventory: string
+  ): Promise<RepairAnalysis> {
+    if (USE_MOCK) {
+      console.log('[API] Mock mode — returning test data');
+      return MOCK_RESPONSE;
+    }
 
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status || 'unknown';
-        const detail = error.response?.data?.detail || error.message;
-        throw new Error(`Server error (${status}): ${detail}`);
-      }
-
+    try {
+      const preferredModel = await getPreferredModel();
+      const payload: AnalyzeRepairRequest = {
+        text_description: textDescription,
+        image_inventory: imageInventory,
+        ...(preferredModel && { preferred_model: preferredModel }),
+      };
+      console.log(`[API] Text mode → ${this.baseURL}/api/analyze-repair-text (model: ${preferredModel || 'auto'})`);
+      const response = await this.client.post<RepairAnalysis>('/api/analyze-repair-text', payload);
+      console.log('[API] Success');
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
       throw error;
     }
   }
+
+  private handleError(error: unknown): never {
+    const isNetworkError =
+      error instanceof Error &&
+      (error.message.includes('Network Error') ||
+        error.message.includes('ECONNREFUSED') ||
+        error.message.includes('ENOTFOUND') ||
+        error.message.includes('timeout'));
+
+    if (isNetworkError) {
+      throw new Error('Can\'t reach the server. Check that the backend is running.');
+    }
+
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status || 'unknown';
+      const detail = error.response?.data?.detail || error.message;
+      throw new Error(`Server error (${status}): ${detail}`);
+    }
+
+    throw error as Error;
+  }
 }
 
-export const api = new SnapSolveAPI('http://172.25.37.124:8000');
+export const API_BASE_URL = 'http://172.20.10.2:8000';
+export const api = new SnapSolveAPI(API_BASE_URL);
 
 const MOCK_RESPONSE: RepairAnalysis = {
   problem_identified: 'Broken ceramic mug with clean fracture at the handle',
-  viability_score: 72,
+  difficulty: 'Medium',
+  estimated_time: '~20 minutes',
   safety_warning: 'Avoid using this repair for hot liquids.',
   selected_materials: ['Two-part epoxy adhesive', 'Masking tape', 'Sandpaper'],
   steps: [

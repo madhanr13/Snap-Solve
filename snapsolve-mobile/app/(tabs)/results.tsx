@@ -4,7 +4,8 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { View, Text, SafeAreaView, StyleSheet, TouchableOpacity, Alert, Share } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Share } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -32,7 +33,7 @@ export default function ResultsScreen() {
     const text =
       `🔧 SnapSolve Fix\n\n` +
       `Problem: ${analysis.problem_identified}\n` +
-      `Viability: ${analysis.viability_score}%\n\n` +
+      `Difficulty: ${analysis.difficulty || 'Medium'} • ${analysis.estimated_time || '~15 min'}\n\n` +
       `⚠️ ${analysis.safety_warning}\n\n` +
       `You'll need:\n${analysis.selected_materials.map((m) => `• ${m}`).join('\n')}\n\n` +
       `Steps:\n${analysis.steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n\n` +

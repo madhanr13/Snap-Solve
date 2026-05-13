@@ -22,6 +22,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { Camera as CameraIcon, ArrowLeft, Zap, ZapOff } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 import { compressImageToBase64 } from '../../utils/ImageCompressor';
 import { api } from '../../utils/api';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
@@ -87,21 +88,35 @@ export default function InventoryScreen() {
 
   const handleCapture = async () => {
     if (isProcessing || !cameraRef.current) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsProcessing(true);
     try {
       const photo = await cameraRef.current.takePictureAsync({ base64: false });
       if (!photo.uri) throw new Error('Failed to capture');
       const compressed = await compressImageToBase64(photo.uri);
+
+      // Check if user used text mode or camera mode for the problem
       const problemBase64 = await AsyncStorage.getItem('problemImageBase64');
-      if (!problemBase64) {
+      const problemText = await AsyncStorage.getItem('problemTextDescription');
+
+      if (!problemBase64 && !problemText) {
         throw new Error('Go back and snap the damage first — we need both photos.');
       }
+
       setIsLoading(true);
-      const analysis = await api.analyzeRepair(problemBase64, compressed.base64);
+      let analysis;
+      if (problemText) {
+        // Text-only mode
+        analysis = await api.analyzeRepairText(problemText, compressed.base64);
+      } else {
+        // Camera mode
+        analysis = await api.analyzeRepair(problemBase64!, compressed.base64);
+      }
       await AsyncStorage.setItem('repairAnalysis', JSON.stringify(analysis));
       // Save to history for the home screen
       const { saveToHistory } = require('../../utils/api');
       await saveToHistory(analysis);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.push('/(tabs)/results');
     } catch (error) {
       Alert.alert('Hmm, something went wrong', error instanceof Error ? error.message : 'Analysis failed');
@@ -116,7 +131,8 @@ export default function InventoryScreen() {
       <LoadingSpinner visible={isLoading} message="Figuring out your fix..." />
 
       {isFocused ? (
-        <CameraView ref={cameraRef} style={styles.camera} facing="back" autofocus="on" flash={flashEnabled ? 'on' : 'off'}>
+        <View style={styles.cameraWrap}>
+          <CameraView ref={cameraRef} style={StyleSheet.absoluteFillObject} facing="back" autofocus="on" flash={flashEnabled ? 'on' : 'off'} />
           <View style={styles.overlay}>
             <View style={styles.topRow}>
               <View style={styles.instrBlock}>
@@ -173,9 +189,9 @@ export default function InventoryScreen() {
               <View style={styles.sideBtn} />
             </View>
           </View>
-        </CameraView>
+        </View>
       ) : (
-        <View style={styles.camera} />
+        <View style={styles.cameraWrap} />
       )}
     </SafeAreaView>
   );
@@ -183,7 +199,7 @@ export default function InventoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
-  camera: { flex: 1, backgroundColor: '#000' },
+  cameraWrap: { flex: 1, backgroundColor: '#000' },
 
   permBox: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   permIcon: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: 24 },

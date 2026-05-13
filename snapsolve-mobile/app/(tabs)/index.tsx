@@ -21,11 +21,14 @@ import {
   ChevronRight,
   Clock,
   Wrench,
+  Trophy,
+  Flame,
+  TrendingUp,
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../utils/ThemeContext';
-import { getHistory } from '../../utils/api';
-import type { HistoryItem } from '../../utils/api';
+import { getHistory, getRepairStats } from '../../utils/api';
+import type { HistoryItem, RepairStats } from '../../utils/api';
 
 function timeAgo(ts: number): string {
   const diff = Date.now() - ts;
@@ -40,21 +43,18 @@ function timeAgo(ts: number): string {
   return new Date(ts).toLocaleDateString();
 }
 
-function scoreLabel(score: number): { text: string; color: string } {
-  if (score >= 70) return { text: 'High', color: '#16a34a' };
-  if (score >= 40) return { text: 'Medium', color: '#d97706' };
-  return { text: 'Low', color: '#dc2626' };
-}
 
 export default function HomeScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [stats, setStats] = useState<RepairStats | null>(null);
 
   // Reload history every time the home tab gains focus
   useFocusEffect(
     useCallback(() => {
       getHistory().then(setHistory);
+      getRepairStats().then(setStats);
     }, [])
   );
 
@@ -108,8 +108,31 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </Animated.View>
 
+        {/* ── Repair Stats ── */}
+        {stats && stats.total > 0 && (
+          <Animated.View style={anim(1)}>
+            <View style={[s.statsRow, { marginHorizontal: 20, marginTop: 16 }]}>
+              <View style={[s.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <Trophy size={18} color={colors.accent} strokeWidth={2} />
+                <Text style={[s.statNum, { color: colors.text }]}>{stats.total}</Text>
+                <Text style={[s.statLabel, { color: colors.textMuted }]}>Total fixes</Text>
+              </View>
+              <View style={[s.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <TrendingUp size={18} color="#16a34a" strokeWidth={2} />
+                <Text style={[s.statNum, { color: colors.text }]}>{stats.thisWeek}</Text>
+                <Text style={[s.statLabel, { color: colors.textMuted }]}>This week</Text>
+              </View>
+              <View style={[s.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <Flame size={18} color="#f97316" strokeWidth={2} />
+                <Text style={[s.statNum, { color: colors.text }]}>{stats.streak}</Text>
+                <Text style={[s.statLabel, { color: colors.textMuted }]}>Day streak</Text>
+              </View>
+            </View>
+          </Animated.View>
+        )}
+
         {/* ── Recent Fixes ── */}
-        <Animated.View style={anim(1)}>
+        <Animated.View style={anim(stats && stats.total > 0 ? 2 : 1)}>
           <View style={s.sectionHeader}>
             <View style={s.sectionHeaderLeft}>
               <Clock size={14} color={colors.textMuted} strokeWidth={2} />
@@ -133,7 +156,6 @@ export default function HomeScreen() {
             /* History list */
             <View style={[s.historyList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               {history.map((item, idx) => {
-                const sl = scoreLabel(item.score);
                 const isLast = idx === history.length - 1;
                 return (
                   <TouchableOpacity
@@ -149,14 +171,9 @@ export default function HomeScreen() {
                       <Text style={[s.historyProblem, { color: colors.text }]} numberOfLines={2}>
                         {item.problem}
                       </Text>
-                      <View style={s.historyMeta}>
-                        <View style={[s.scorePill, { backgroundColor: sl.color + '18' }]}>
-                          <Text style={[s.scoreText, { color: sl.color }]}>{item.score}%</Text>
-                        </View>
-                        <Text style={[s.historyTime, { color: colors.textMuted }]}>
-                          {timeAgo(item.timestamp)}
-                        </Text>
-                      </View>
+                      <Text style={[s.historyTime, { color: colors.textMuted }]}>
+                        {timeAgo(item.timestamp)}
+                      </Text>
                     </View>
                     <ChevronRight size={16} color={colors.textMuted} strokeWidth={2} />
                   </TouchableOpacity>
@@ -228,10 +245,16 @@ const s = StyleSheet.create({
   },
   historyItemContent: { flex: 1 },
   historyProblem: { fontSize: 14, fontWeight: '500', lineHeight: 20, marginBottom: 6 },
-  historyMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  scorePill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  scoreText: { fontSize: 12, fontWeight: '700' },
   historyTime: { fontSize: 12 },
+
+  // Stats
+  statsRow: { flexDirection: 'row', gap: 8 },
+  statCard: {
+    flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 14,
+    borderWidth: 1, gap: 4,
+  },
+  statNum: { fontSize: 22, fontWeight: '800' },
+  statLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 0.5 },
 
   // Tips
   tipsCard: {

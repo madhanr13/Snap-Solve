@@ -22,8 +22,11 @@ import {
   Cpu,
   Zap,
   Award,
+  LogOut,
+  User,
 } from 'lucide-react-native';
 import { useTheme } from '../../utils/ThemeContext';
+import { useAuth } from '../../utils/AuthContext';
 import {
   AVAILABLE_MODELS,
   getPreferredModel,
@@ -33,6 +36,7 @@ import {
 
 export default function SettingsScreen() {
   const { colors, isDark, toggle } = useTheme();
+  const { user, logout } = useAuth();
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash-lite');
 
   useEffect(() => {
@@ -56,6 +60,17 @@ export default function SettingsScreen() {
           await clearHistory();
           Alert.alert('Done', 'History cleared.');
         },
+      },
+    ]);
+  };
+
+  const handleLogout = () => {
+    Alert.alert('Sign out?', 'You\'ll need to log in again.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: () => logout(),
       },
     ]);
   };
@@ -174,6 +189,26 @@ export default function SettingsScreen() {
             {`• Keep the camera steady to avoid blur\n`}
             {`• Pro models give more detailed instructions`}
           </Text>
+        </View>
+
+        {/* ── Account ── */}
+        <Text style={[s.sectionLabel, { color: colors.textMuted }]}>ACCOUNT</Text>
+        <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={[s.row, { borderBottomWidth: 1, borderBottomColor: colors.borderLight }]}>
+            <View style={s.rowLeft}>
+              <User size={20} color={colors.accent} strokeWidth={2} />
+              <Text style={[s.rowText, { color: colors.text }]}>Signed in as</Text>
+            </View>
+            <Text style={[s.rowValue, { color: colors.accent, fontWeight: '600' }]}>
+              {user?.display_name || user?.username || 'Unknown'}
+            </Text>
+          </View>
+          <TouchableOpacity style={s.row} onPress={handleLogout} activeOpacity={0.6}>
+            <View style={s.rowLeft}>
+              <LogOut size={20} color={colors.danger} strokeWidth={2} />
+              <Text style={[s.rowText, { color: colors.danger }]}>Sign Out</Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
         <View style={{ height: 40 }} />

@@ -1,10 +1,25 @@
 /**
- * Loading Spinner — animated dots with theme support.
+ * Loading Spinner — fun rotating messages + wrench animation.
+ * Feature 3: Makes the wait feel shorter with personality.
  */
 
-import React, { useEffect, useRef } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, Animated } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
+import { Wrench } from 'lucide-react-native';
 import { useTheme } from '../utils/ThemeContext';
+
+const FUN_MESSAGES = [
+  'Inspecting the damage...',
+  'Consulting the repair manual...',
+  'Measuring twice...',
+  'Finding the duct tape...',
+  'Analyzing materials...',
+  'Engineering a solution...',
+  'Running stress simulations...',
+  'Almost there...',
+  'Putting the pieces together...',
+  'Channeling inner MacGyver...',
+];
 
 interface Props {
   visible: boolean;
@@ -13,35 +28,118 @@ interface Props {
 
 export function LoadingSpinner({ visible, message }: Props) {
   const { colors } = useTheme();
-  const dots = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
+  const [msgIndex, setMsgIndex] = useState(0);
+
+  // Wrench rotation
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  // Dots bounce
+  const dots = [
+    useRef(new Animated.Value(0)).current,
+    useRef(new Animated.Value(0)).current,
+    useRef(new Animated.Value(0)).current,
+  ];
+  // Message fade
+  const msgFade = useRef(new Animated.Value(1)).current;
+  // Pulse ring
+  const pulseScale = useRef(new Animated.Value(1)).current;
+  const pulseOpacity = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {
     if (!visible) return;
-    const anims = dots.map((d, i) =>
-      Animated.loop(Animated.sequence([
-        Animated.delay(i * 150),
-        Animated.timing(d, { toValue: -8, duration: 400, useNativeDriver: true }),
-        Animated.timing(d, { toValue: 0, duration: 400, useNativeDriver: true }),
-      ]))
+
+    // Wrench rotation animation
+    const rotate = Animated.loop(
+      Animated.sequence([
+        Animated.timing(rotateAnim, { toValue: 1, duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(rotateAnim, { toValue: 0, duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
     );
-    anims.forEach((a) => a.start());
-    return () => anims.forEach((a) => a.stop());
+    rotate.start();
+
+    // Dots bounce
+    const dotAnims = dots.map((d, i) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(i * 150),
+          Animated.timing(d, { toValue: -10, duration: 350, useNativeDriver: true }),
+          Animated.timing(d, { toValue: 0, duration: 350, useNativeDriver: true }),
+        ])
+      )
+    );
+    dotAnims.forEach((a) => a.start());
+
+    // Pulse ring
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(pulseScale, { toValue: 1.5, duration: 1200, useNativeDriver: true }),
+          Animated.timing(pulseOpacity, { toValue: 0, duration: 1200, useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(pulseScale, { toValue: 1, duration: 0, useNativeDriver: true }),
+          Animated.timing(pulseOpacity, { toValue: 0.4, duration: 0, useNativeDriver: true }),
+        ]),
+      ])
+    );
+    pulse.start();
+
+    // Cycle messages
+    const interval = setInterval(() => {
+      Animated.timing(msgFade, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+        setMsgIndex((prev) => (prev + 1) % FUN_MESSAGES.length);
+        Animated.timing(msgFade, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+      });
+    }, 2500);
+
+    return () => {
+      rotate.stop();
+      dotAnims.forEach((a) => a.stop());
+      pulse.stop();
+      clearInterval(interval);
+    };
   }, [visible]);
 
   if (!visible) return null;
 
+  const spin = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['-20deg', '20deg'],
+  });
+
   return (
     <View style={[s.bg, { backgroundColor: colors.bg + 'F5' }]}>
       <View style={[s.card, { backgroundColor: colors.surface }]}>
-        <View style={[s.iconCircle, { backgroundColor: colors.surfaceAlt }]}>
-          <ActivityIndicator size="large" color={colors.accent} />
+        {/* Pulsing ring */}
+        <View style={s.iconArea}>
+          <Animated.View
+            style={[
+              s.pulseRing,
+              {
+                borderColor: colors.accent,
+                transform: [{ scale: pulseScale }],
+                opacity: pulseOpacity,
+              },
+            ]}
+          />
+          <Animated.View style={[s.iconCircle, { backgroundColor: colors.surfaceAlt, transform: [{ rotate: spin }] }]}>
+            <Wrench size={28} color={colors.accent} strokeWidth={2} />
+          </Animated.View>
         </View>
+
+        {/* Bouncing dots */}
         <View style={s.dotsRow}>
           {dots.map((d, i) => (
-            <Animated.View key={i} style={[s.dot, { backgroundColor: colors.accent, transform: [{ translateY: d }] }]} />
+            <Animated.View
+              key={i}
+              style={[s.dot, { backgroundColor: colors.accent, transform: [{ translateY: d }] }]}
+            />
           ))}
         </View>
-        <Text style={[s.msg, { color: colors.text }]}>{message || 'Working on it...'}</Text>
+
+        {/* Rotating message */}
+        <Animated.Text style={[s.msg, { color: colors.text, opacity: msgFade }]}>
+          {message || FUN_MESSAGES[msgIndex]}
+        </Animated.Text>
         <Text style={[s.hint, { color: colors.textMuted }]}>This usually takes a few seconds</Text>
       </View>
     </View>
@@ -49,12 +147,20 @@ export function LoadingSpinner({ visible, message }: Props) {
 }
 
 const s = StyleSheet.create({
-  bg: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
+  bg: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    justifyContent: 'center', alignItems: 'center', zIndex: 1000,
+  },
   card: {
     alignItems: 'center', paddingHorizontal: 40, paddingVertical: 36, borderRadius: 20,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 8,
   },
-  iconCircle: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  iconArea: { justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  pulseRing: {
+    position: 'absolute', width: 64, height: 64, borderRadius: 32,
+    borderWidth: 2,
+  },
+  iconCircle: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center' },
   dotsRow: { flexDirection: 'row', gap: 6, marginBottom: 16 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   msg: { fontSize: 16, fontWeight: '600', textAlign: 'center' },

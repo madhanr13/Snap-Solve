@@ -15,6 +15,9 @@ import {
   Image,
   ActivityIndicator,
   Animated,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -25,9 +28,12 @@ import {
   X,
   Zap,
   ZapOff,
+  Type,
+  CameraIcon as CamSwitch,
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 import { compressImageToBase64 } from '../../utils/ImageCompressor';
 import { useTheme } from '../../utils/ThemeContext';
 
@@ -42,6 +48,8 @@ export default function ScanScreen() {
   const [previewCompressed, setPreviewCompressed] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [flashEnabled, setFlashEnabled] = useState(false);
+  const [textMode, setTextMode] = useState(false);
+  const [textDescription, setTextDescription] = useState('');
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -86,6 +94,7 @@ export default function ScanScreen() {
 
   const handleCapture = async () => {
     if (isProcessing || !cameraRef.current) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsProcessing(true);
     try {
       const photo = await cameraRef.current.takePictureAsync({ base64: false });
@@ -102,10 +111,12 @@ export default function ScanScreen() {
 
   const handleConfirm = async () => {
     if (!previewCompressed) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setIsSaving(true);
     try {
       await AsyncStorage.setItem('problemImageBase64', previewCompressed.base64);
       await AsyncStorage.setItem('problemImageUri', previewUri || '');
+      await AsyncStorage.removeItem('problemTextDescription');
       setPreviewUri(null);
       setPreviewCompressed(null);
       router.push('/(tabs)/inventory');
@@ -114,6 +125,18 @@ export default function ScanScreen() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleTextConfirm = async () => {
+    if (!textDescription.trim()) {
+      Alert.alert('Describe the problem', 'Tell us what\'s broken so we can help.');
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await AsyncStorage.setItem('problemTextDescription', textDescription.trim());
+    await AsyncStorage.removeItem('problemImageBase64');
+    await AsyncStorage.removeItem('problemImageUri');
+    router.push('/(tabs)/inventory');
   };
 
   const handleRetake = () => {
@@ -158,18 +181,71 @@ export default function ScanScreen() {
     );
   }
 
+  // ── Text Mode ──
+  if (textMode) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.textModeWrap}>
+            <TouchableOpacity
+              style={[styles.modeToggle, { backgroundColor: colors.surfaceAlt }]}
+              onPress={() => setTextMode(false)}
+              activeOpacity={0.7}
+            >
+              <CamSwitch size={16} color={colors.accent} strokeWidth={2} />
+              <Text style={[styles.modeToggleText, { color: colors.accent }]}>Switch to camera</Text>
+            </TouchableOpacity>
+
+            <Text style={[styles.textModeTitle, { color: colors.text }]}>Describe what's broken</Text>
+            <Text style={[styles.textModeDesc, { color: colors.textSecondary }]}>
+              No camera? No problem. Tell us what needs fixing.
+            </Text>
+
+            <TextInput
+              style={[
+                styles.textInput,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  color: colors.text,
+                },
+              ]}
+              placeholder="e.g. Broken chair leg, clean snap at the joint..."
+              placeholderTextColor={colors.textMuted}
+              value={textDescription}
+              onChangeText={setTextDescription}
+              multiline
+              numberOfLines={5}
+              textAlignVertical="top"
+            />
+
+            <TouchableOpacity
+              style={[styles.textConfirmBtn, { backgroundColor: colors.accent }]}
+              onPress={handleTextConfirm}
+              activeOpacity={0.8}
+            >
+              <Check size={20} color="#fff" strokeWidth={2.5} />
+              <Text style={styles.textConfirmBtnText}>Continue to materials</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
   // ── Camera ──
   return (
     <SafeAreaView style={styles.container}>
       {/* Only mount camera when focused — fixes blank camera on re-navigate */}
       {isFocused ? (
-        <CameraView
-          ref={cameraRef}
-          style={styles.camera}
-          facing="back"
-          autofocus="on"
-          flash={flashEnabled ? 'on' : 'off'}
-        >
+        <View style={styles.cameraWrap}>
+          <CameraView
+            ref={cameraRef}
+            style={StyleSheet.absoluteFillObject}
+            facing="back"
+            autofocus="on"
+            flash={flashEnabled ? 'on' : 'off'}
+          />
           <View style={styles.overlay}>
             <View style={styles.topRow}>
               <View style={styles.instrBlock}>
@@ -179,13 +255,22 @@ export default function ScanScreen() {
                   Get the whole thing in frame — the more we can see, the better the fix.
                 </Text>
               </View>
-              <TouchableOpacity
-                style={[styles.flashBtn, flashEnabled && styles.flashBtnOn]}
-                onPress={() => setFlashEnabled(!flashEnabled)}
-                activeOpacity={0.7}
-              >
-                {flashEnabled ? <Zap size={18} color="#fbbf24" /> : <ZapOff size={18} color="#a8a29e" />}
-              </TouchableOpacity>
+              <View style={styles.topBtns}>
+                <TouchableOpacity
+                  style={[styles.flashBtn, flashEnabled && styles.flashBtnOn]}
+                  onPress={() => setFlashEnabled(!flashEnabled)}
+                  activeOpacity={0.7}
+                >
+                  {flashEnabled ? <Zap size={18} color="#fbbf24" /> : <ZapOff size={18} color="#a8a29e" />}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.textModeBtn}
+                  onPress={() => setTextMode(true)}
+                  activeOpacity={0.7}
+                >
+                  <Type size={16} color="#fff" strokeWidth={2} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.vf}>
@@ -215,10 +300,10 @@ export default function ScanScreen() {
               <Text style={styles.capHint}>{isProcessing ? 'Processing...' : 'Tap to capture'}</Text>
             </View>
           </View>
-        </CameraView>
+        </View>
       ) : (
         /* Placeholder while unfocused — prevents stale camera state */
-        <View style={styles.camera} />
+        <View style={styles.cameraWrap} />
       )}
     </SafeAreaView>
   );
@@ -226,7 +311,7 @@ export default function ScanScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
-  camera: { flex: 1, backgroundColor: '#000' },
+  cameraWrap: { flex: 1, backgroundColor: '#000' },
 
   // Permission
   permBox: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
@@ -239,6 +324,7 @@ const styles = StyleSheet.create({
   // Overlay
   overlay: { flex: 1, justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 36 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  topBtns: { flexDirection: 'column', gap: 8 },
   instrBlock: { flex: 1, marginRight: 12 },
   instrHint: {
     fontSize: 11, fontWeight: '700', color: '#60a5fa', letterSpacing: 1, marginBottom: 6,
@@ -298,4 +384,27 @@ const styles = StyleSheet.create({
     borderRadius: 16, minWidth: 120, justifyContent: 'center', backgroundColor: '#16a34a',
   },
   pBtnFilledText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+
+  // Text mode
+  textModeBtn: {
+    backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 22, padding: 10,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center',
+  },
+  textModeWrap: { flex: 1, paddingHorizontal: 24, paddingTop: 20 },
+  modeToggle: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, marginBottom: 24,
+  },
+  modeToggleText: { fontSize: 13, fontWeight: '600' },
+  textModeTitle: { fontSize: 24, fontWeight: '700', marginBottom: 6 },
+  textModeDesc: { fontSize: 14, lineHeight: 20, marginBottom: 20 },
+  textInput: {
+    borderWidth: 1, borderRadius: 14, padding: 16, fontSize: 15, lineHeight: 22,
+    minHeight: 140, marginBottom: 20,
+  },
+  textConfirmBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 16, borderRadius: 14,
+  },
+  textConfirmBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

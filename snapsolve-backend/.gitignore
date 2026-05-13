@@ -37,3 +37,8 @@ venv.bak/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Databases
+*.db
+*.sqlite3
+users.db
