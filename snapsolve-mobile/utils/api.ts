@@ -41,15 +41,26 @@ const MAX_HISTORY = 20;
 
 export async function saveToHistory(analysis: RepairAnalysis): Promise<void> {
   try {
-    const raw = await AsyncStorage.getItem(HISTORY_KEY);
-    const history: HistoryItem[] = raw ? JSON.parse(raw) : [];
-    history.unshift({
+    const item: HistoryItem = {
       id: Date.now().toString(),
       timestamp: Date.now(),
       problem: analysis.problem_identified,
       difficulty: analysis.difficulty,
       analysis,
-    });
+    };
+
+    const token = await AsyncStorage.getItem('@snapsolve_auth_token');
+    if (token) {
+      // Save to backend
+      await axios.post(`${API_BASE_URL}/api/history`, item, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    }
+
+    // Always keep local cache as well
+    const raw = await AsyncStorage.getItem(HISTORY_KEY);
+    const history: HistoryItem[] = raw ? JSON.parse(raw) : [];
+    history.unshift(item);
     await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, MAX_HISTORY)));
   } catch (e) {
     console.error('[History] Failed to save:', e);
@@ -58,14 +69,35 @@ export async function saveToHistory(analysis: RepairAnalysis): Promise<void> {
 
 export async function getHistory(): Promise<HistoryItem[]> {
   try {
+    const token = await AsyncStorage.getItem('@snapsolve_auth_token');
+    if (token) {
+      // Fetch from backend
+      const res = await axios.get(`${API_BASE_URL}/api/history`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const remoteHistory = res.data;
+      // Sync local cache
+      await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(remoteHistory));
+      return remoteHistory;
+    }
+    
+    // Fallback to local
     const raw = await AsyncStorage.getItem(HISTORY_KEY);
     return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
+  } catch (e) {
+    console.error('[History] Failed to get:', e);
+    // On error, fallback to local
+    try {
+      const raw = await AsyncStorage.getItem(HISTORY_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
   }
 }
 
 export async function clearHistory(): Promise<void> {
+  // Clear local. (Backend clearing would require a new endpoint, omitted for now).
   await AsyncStorage.removeItem(HISTORY_KEY);
 }
 

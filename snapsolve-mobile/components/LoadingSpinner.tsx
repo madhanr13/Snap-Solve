@@ -5,7 +5,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
-import { Wrench } from 'lucide-react-native';
+import { AppLogo } from './AppLogo';
 import { useTheme } from '../utils/ThemeContext';
 
 const FUN_MESSAGES = [
@@ -122,7 +122,7 @@ export function LoadingSpinner({ visible, message }: Props) {
             ]}
           />
           <Animated.View style={[s.iconCircle, { backgroundColor: colors.surfaceAlt, transform: [{ rotate: spin }] }]}>
-            <Wrench size={28} color={colors.accent} strokeWidth={2} />
+            <AppLogo size={28} color={colors.accent} strokeWidth={2} />
           </Animated.View>
         </View>
 

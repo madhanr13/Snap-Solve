@@ -15,10 +15,11 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LogIn, User, Lock, Wrench } from 'lucide-react-native';
+import { LogIn, User, Lock } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../utils/ThemeContext';
 import { useAuth } from '../utils/AuthContext';
+import { AppLogo } from '../components/AppLogo';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -59,10 +60,8 @@ export default function LoginScreen() {
         >
           {/* Logo / branding */}
           <View style={s.logoArea}>
-            <View style={[s.logoCircle, { backgroundColor: isDark ? '#1e3a5f' : '#dbeafe' }]}>
-              <Wrench size={36} color={colors.accent} strokeWidth={2} />
-            </View>
-            <Text style={[s.appName, { color: colors.text }]}>SnapSolve</Text>
+            <AppLogo width="100%" height={100} />
+            <Text style={[s.appName, { color: colors.text, marginTop: 16 }]}>SnapSolve</Text>
             <Text style={[s.tagline, { color: colors.textMuted }]}>
               AI-powered repair guides
             </Text>
@@ -104,7 +103,7 @@ export default function LoginScreen() {
             </View>
 
             <TouchableOpacity
-              style={[s.button, { backgroundColor: colors.accent }]}
+              style={[s.button, { backgroundColor: colors.success }]}
               onPress={handleLogin}
               disabled={loading}
               activeOpacity={0.8}
@@ -141,10 +140,6 @@ const s = StyleSheet.create({
 
   // Logo
   logoArea: { alignItems: 'center', marginBottom: 40 },
-  logoCircle: {
-    width: 80, height: 80, borderRadius: 24, justifyContent: 'center', alignItems: 'center',
-    marginBottom: 16,
-  },
   appName: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
   tagline: { fontSize: 14, marginTop: 4 },
 

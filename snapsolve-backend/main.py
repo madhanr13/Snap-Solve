@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from auth import (
     RegisterRequest, LoginRequest, AuthResponse,
     register_user, login_user, verify_token,
+    save_user_history, get_user_history,
 )
 
 # Load environment variables from .env file
@@ -109,6 +110,26 @@ async def login(request: LoginRequest):
 async def profile(user: dict = Depends(verify_token)):
     """Get the current user's profile (requires auth)."""
     return {"user_id": user["user_id"], "username": user["username"]}
+
+
+@app.get("/api/history")
+async def get_history(user: dict = Depends(verify_token)):
+    """Get the current user's repair history."""
+    try:
+        history = get_user_history(user["user_id"])
+        return history
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/history")
+async def save_history(history_item: dict, user: dict = Depends(verify_token)):
+    """Save a repair analysis to the user's history."""
+    try:
+        save_user_history(user["user_id"], history_item)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/analyze-repair", response_model=RepairAnalysis)

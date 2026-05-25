@@ -15,10 +15,11 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { UserPlus, User, Lock, AtSign, Wrench } from 'lucide-react-native';
+import { UserPlus, User, Lock, AtSign } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../utils/ThemeContext';
 import { useAuth } from '../utils/AuthContext';
+import { AppLogo } from '../components/AppLogo';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -75,10 +76,8 @@ export default function RegisterScreen() {
         >
           {/* Logo */}
           <View style={s.logoArea}>
-            <View style={[s.logoCircle, { backgroundColor: isDark ? '#052e16' : '#dcfce7' }]}>
-              <Wrench size={36} color={colors.success} strokeWidth={2} />
-            </View>
-            <Text style={[s.appName, { color: colors.text }]}>Join SnapSolve</Text>
+            <AppLogo width="100%" height={100} />
+            <Text style={[s.appName, { color: colors.text, marginTop: 16 }]}>Join SnapSolve</Text>
             <Text style={[s.tagline, { color: colors.textMuted }]}>
               Create your account to get started
             </Text>
@@ -178,10 +177,6 @@ const s = StyleSheet.create({
 
   // Logo
   logoArea: { alignItems: 'center', marginBottom: 32 },
-  logoCircle: {
-    width: 80, height: 80, borderRadius: 24, justifyContent: 'center', alignItems: 'center',
-    marginBottom: 16,
-  },
   appName: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
   tagline: { fontSize: 14, marginTop: 4 },
 

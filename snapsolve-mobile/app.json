@@ -13,6 +13,9 @@
     },
     "android": {
       "package": "com.snapsolve.app"
+    },
+    "web": {
+      "bundler": "metro"
     }
   }
 }

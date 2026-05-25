@@ -60,6 +60,17 @@ def init_db():
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS repairs_history (
+            id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            timestamp INTEGER NOT NULL,
+            problem TEXT NOT NULL,
+            difficulty TEXT,
+            analysis_json TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -190,5 +201,56 @@ def login_user(request: LoginRequest) -> AuthResponse:
                 "display_name": row["display_name"],
             },
         )
+    finally:
+        conn.close()
+
+
+def save_user_history(user_id: int, history_item: dict):
+    """Save a repair history item for a user."""
+    import json
+    conn = get_db()
+    try:
+        # Check if already exists (we can replace if needed)
+        analysis_json = json.dumps(history_item.get("analysis", {}))
+        conn.execute("""
+            INSERT OR REPLACE INTO repairs_history 
+            (id, user_id, timestamp, problem, difficulty, analysis_json)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            history_item["id"],
+            user_id,
+            history_item["timestamp"],
+            history_item["problem"],
+            history_item.get("difficulty"),
+            analysis_json
+        ))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_user_history(user_id: int) -> list:
+    """Get all repair history for a user, sorted by newest first."""
+    import json
+    conn = get_db()
+    try:
+        rows = conn.execute("""
+            SELECT id, timestamp, problem, difficulty, analysis_json 
+            FROM repairs_history 
+            WHERE user_id = ? 
+            ORDER BY timestamp DESC
+            LIMIT 50
+        """, (user_id,)).fetchall()
+        
+        result = []
+        for row in rows:
+            result.append({
+                "id": row["id"],
+                "timestamp": row["timestamp"],
+                "problem": row["problem"],
+                "difficulty": row["difficulty"],
+                "analysis": json.loads(row["analysis_json"])
+            })
+        return result
     finally:
         conn.close()
