@@ -24,7 +24,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { compressImageToBase64 } from '../../utils/ImageCompressor';
-import { api } from '../../utils/api';
+import { api, saveToHistory, getToolbox, saveToolbox } from '../../utils/api';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { useTheme } from '../../utils/ThemeContext';
 
@@ -114,10 +114,29 @@ export default function InventoryScreen() {
       }
       await AsyncStorage.setItem('repairAnalysis', JSON.stringify(analysis));
       // Save to history for the home screen
-      const { saveToHistory } = require('../../utils/api');
       await saveToHistory(analysis);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.push('/(tabs)/results');
+
+      // Offer to save materials as toolbox
+      const existingToolbox = await getToolbox();
+      if (!existingToolbox) {
+        Alert.alert(
+          'Save as your toolbox?',
+          'Save this materials photo so you can skip this step next time.',
+          [
+            { text: 'No thanks', style: 'cancel', onPress: () => router.push('/(tabs)/results') },
+            {
+              text: 'Save it',
+              onPress: async () => {
+                await saveToolbox(compressed.base64);
+                router.push('/(tabs)/results');
+              },
+            },
+          ]
+        );
+      } else {
+        router.push('/(tabs)/results');
+      }
     } catch (error) {
       Alert.alert('Hmm, something went wrong', error instanceof Error ? error.message : 'Analysis failed');
     } finally {

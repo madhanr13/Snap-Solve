@@ -19,6 +19,7 @@ from auth import (
     RegisterRequest, LoginRequest, AuthResponse,
     register_user, login_user, verify_token,
     save_user_history, get_user_history,
+    save_toolbox_image, get_toolbox_image,
 )
 
 # Load environment variables from .env file
@@ -225,6 +226,10 @@ async def analyze_repair(request: AnalyzeRepairRequest) -> RepairAnalysis:
                 safety_warning=parsed_response.get("safety_warning", ""),
                 selected_materials=parsed_response.get("selected_materials", []),
                 steps=parsed_response.get("steps", []),
+                substitutions=parsed_response.get("substitutions", []),
+                durability_estimate=parsed_response.get("durability_estimate", ""),
+                warning_signs=parsed_response.get("warning_signs", []),
+                permanent_fix_advice=parsed_response.get("permanent_fix_advice", ""),
             )
 
             print(f"[SnapSolve] Success with model: {model_name}")
@@ -344,6 +349,10 @@ async def analyze_repair_text(request: AnalyzeRepairTextRequest) -> RepairAnalys
                 safety_warning=parsed_response.get("safety_warning", ""),
                 selected_materials=parsed_response.get("selected_materials", []),
                 steps=parsed_response.get("steps", []),
+                substitutions=parsed_response.get("substitutions", []),
+                durability_estimate=parsed_response.get("durability_estimate", ""),
+                warning_signs=parsed_response.get("warning_signs", []),
+                permanent_fix_advice=parsed_response.get("permanent_fix_advice", ""),
             )
             print(f"[SnapSolve] Text mode success with model: {model_name}")
             return analysis
@@ -362,3 +371,133 @@ async def analyze_repair_text(request: AnalyzeRepairTextRequest) -> RepairAnalys
         status_code=429,
         detail=f"All AI models are rate-limited. Please wait a minute and try again. Last error: {str(last_error)}"
     )
+
+
+# ── Feature: Alternative Repair Method ──────────────────────────────
+
+class AlternativeRepairRequest(BaseModel):
+    """Request for an alternative repair approach."""
+    image_problem: str
+    image_inventory: str
+    original_steps: list[str]
+    repair_style: str = "quick"  # "quick" or "heavy_duty"
+    preferred_model: Optional[str] = None
+
+
+@app.post("/api/analyze-repair-alternative", response_model=RepairAnalysis)
+async def analyze_repair_alternative(request: AlternativeRepairRequest) -> RepairAnalysis:
+    """Generate an alternative repair approach using a different technique."""
+    DEFAULT_MODELS = [
+        "gemini-2.5-flash-lite",
+        "gemini-2.0-flash-lite",
+        "gemini-2.0-flash",
+    ]
+
+    if request.preferred_model:
+        MODELS = [request.preferred_model] + [m for m in DEFAULT_MODELS if m != request.preferred_model]
+    else:
+        MODELS = DEFAULT_MODELS
+
+    style_instruction = (
+        "Prioritize SPEED over durability — the quickest possible fix."
+        if request.repair_style == "quick"
+        else "Prioritize DURABILITY over ease — the most long-lasting fix."
+    )
+
+    alt_prompt = f"""You are an expert frugal mechanical engineer. You previously gave a repair guide for this broken object.
+The user wants a COMPLETELY DIFFERENT approach. Here were the original steps (DO NOT repeat these):
+{chr(10).join(f'- {s}' for s in request.original_steps)}
+
+Generate an alternative repair using the same available materials but a DIFFERENT technique.
+Style: {style_instruction}
+
+You MUST return your response entirely in valid JSON format without markdown code blocks. Use this exact schema:
+{{
+  "problem_identified": "Short description of the structural failure.",
+  "difficulty": "Easy" or "Medium" or "Hard",
+  "estimated_time": "Estimated time to complete the repair",
+  "safety_warning": "One crucial safety rule.",
+  "selected_materials": ["item 1", "item 2"],
+  "steps": ["Step 1", "Step 2"],
+  "substitutions": [{{"original": "material", "substitute": "alternative", "notes": "trade-off"}}],
+  "durability_estimate": "How long this fix should last",
+  "warning_signs": ["Sign to watch"],
+  "permanent_fix_advice": "What to do for a permanent fix"
+}}"""
+
+    content = [
+        alt_prompt,
+        {"mime_type": "image/jpeg", "data": request.image_problem},
+        {"mime_type": "image/jpeg", "data": request.image_inventory},
+    ]
+
+    last_error = None
+    for model_name in MODELS:
+        try:
+            model = genai.GenerativeModel(model_name=model_name)
+            for attempt in range(3):
+                try:
+                    response = model.generate_content(content)
+                    break
+                except Exception as retry_err:
+                    if "429" in str(retry_err) and attempt < 2:
+                        wait = (attempt + 1) * 10
+                        time.sleep(wait)
+                        continue
+                    raise
+
+            response_text = response.text.strip()
+            if response_text.startswith("```json"):
+                response_text = response_text[7:]
+            if response_text.startswith("```"):
+                response_text = response_text[3:]
+            if response_text.endswith("```"):
+                response_text = response_text[:-3]
+            response_text = response_text.strip()
+
+            parsed = json.loads(response_text)
+            raw_diff = parsed.get("difficulty", "Medium")
+            if raw_diff not in ("Easy", "Medium", "Hard"):
+                raw_diff = "Medium"
+
+            return RepairAnalysis(
+                problem_identified=parsed.get("problem_identified", ""),
+                difficulty=raw_diff,
+                estimated_time=parsed.get("estimated_time", "~15 minutes"),
+                safety_warning=parsed.get("safety_warning", ""),
+                selected_materials=parsed.get("selected_materials", []),
+                steps=parsed.get("steps", []),
+                substitutions=parsed.get("substitutions", []),
+                durability_estimate=parsed.get("durability_estimate", ""),
+                warning_signs=parsed.get("warning_signs", []),
+                permanent_fix_advice=parsed.get("permanent_fix_advice", ""),
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            last_error = e
+            if "429" in str(e) or "quota" in str(e).lower():
+                continue
+            raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+    raise HTTPException(status_code=429, detail=f"All models rate-limited. Last error: {str(last_error)}")
+
+
+# ── Feature: Saved Toolbox ──────────────────────────────────────
+
+@app.post("/api/toolbox")
+async def save_toolbox(data: dict, user: dict = Depends(verify_token)):
+    """Save a toolbox photo for the authenticated user."""
+    image = data.get("image")
+    if not image:
+        raise HTTPException(status_code=400, detail="No image provided")
+    save_toolbox_image(user["user_id"], image)
+    return {"status": "success"}
+
+
+@app.get("/api/toolbox")
+async def get_toolbox(user: dict = Depends(verify_token)):
+    """Get the saved toolbox photo for the authenticated user."""
+    image = get_toolbox_image(user["user_id"])
+    return {"image": image}

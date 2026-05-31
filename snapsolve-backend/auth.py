@@ -72,6 +72,14 @@ def init_db():
         )
     """)
     conn.commit()
+
+    # Migration: add toolbox_image column if it doesn't exist
+    try:
+        conn.execute("ALTER TABLE users ADD COLUMN toolbox_image TEXT")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+
     conn.close()
 
 
@@ -252,5 +260,33 @@ def get_user_history(user_id: int) -> list:
                 "analysis": json.loads(row["analysis_json"])
             })
         return result
+    finally:
+        conn.close()
+
+
+# ── Toolbox Helpers ──────────────────────────────────────────────────
+
+def save_toolbox_image(user_id: int, image_base64: str):
+    """Save a toolbox image for a user."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE users SET toolbox_image = ? WHERE id = ?",
+            (image_base64, user_id)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_toolbox_image(user_id: int) -> str | None:
+    """Get the saved toolbox image for a user."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT toolbox_image FROM users WHERE id = ?",
+            (user_id,)
+        ).fetchone()
+        return row["toolbox_image"] if row else None
     finally:
         conn.close()

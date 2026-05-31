@@ -24,6 +24,8 @@ import {
   Award,
   LogOut,
   User,
+  Package,
+  Image as ImageIcon,
 } from 'lucide-react-native';
 import { useTheme } from '../../utils/ThemeContext';
 import { useAuth } from '../../utils/AuthContext';
@@ -32,17 +34,21 @@ import {
   getPreferredModel,
   setPreferredModel,
   clearHistory,
+  getToolbox,
+  clearToolbox,
 } from '../../utils/api';
 
 export default function SettingsScreen() {
   const { colors, isDark, toggle } = useTheme();
   const { user, logout } = useAuth();
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash-lite');
+  const [hasToolbox, setHasToolbox] = useState(false);
 
   useEffect(() => {
     getPreferredModel().then((m) => {
       if (m) setSelectedModel(m);
     });
+    getToolbox().then((t) => setHasToolbox(!!t));
   }, []);
 
   const handleModelChange = async (modelId: string) => {
@@ -59,6 +65,21 @@ export default function SettingsScreen() {
         onPress: async () => {
           await clearHistory();
           Alert.alert('Done', 'History cleared.');
+        },
+      },
+    ]);
+  };
+
+  const handleClearToolbox = () => {
+    Alert.alert('Remove saved toolbox?', 'You\'ll need to take a new materials photo each time.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          await clearToolbox();
+          setHasToolbox(false);
+          Alert.alert('Done', 'Toolbox removed.');
         },
       },
     ]);
@@ -160,6 +181,42 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* ── My Toolbox ── */}
+        <Text style={[s.sectionLabel, { color: colors.textMuted }]}>MY TOOLBOX</Text>
+        <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={[s.row, { borderBottomWidth: hasToolbox ? 1 : 0, borderBottomColor: colors.borderLight }]}>
+            <View style={s.rowLeft}>
+              <Package size={20} color={colors.accent} strokeWidth={2} />
+              <View>
+                <Text style={[s.rowText, { color: colors.text }]}>Saved Materials</Text>
+                <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+                  {hasToolbox ? 'Toolbox photo saved ✓' : 'No toolbox saved yet'}
+                </Text>
+              </View>
+            </View>
+            {hasToolbox && (
+              <View style={[s.toolboxBadge, { backgroundColor: isDark ? '#052e16' : '#f0fdf4' }]}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.success }}>SAVED</Text>
+              </View>
+            )}
+          </View>
+          {hasToolbox && (
+            <TouchableOpacity style={s.row} onPress={handleClearToolbox} activeOpacity={0.6}>
+              <View style={s.rowLeft}>
+                <Trash2 size={20} color={colors.danger} strokeWidth={2} />
+                <Text style={[s.rowText, { color: colors.danger }]}>Remove Toolbox</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          {!hasToolbox && (
+            <View style={{ paddingHorizontal: 16, paddingBottom: 14 }}>
+              <Text style={{ fontSize: 12, color: colors.textMuted, lineHeight: 18 }}>
+                Take a materials photo during your next scan — you'll be asked to save it as your toolbox.
+              </Text>
+            </View>
+          )}
+        </View>
+
         {/* ── About ── */}
         <Text style={[s.sectionLabel, { color: colors.textMuted }]}>ABOUT</Text>
         <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -243,4 +300,7 @@ const s = StyleSheet.create({
   modelTag: { fontSize: 11, fontWeight: '600' },
 
   tipsText: { fontSize: 13, lineHeight: 22, padding: 16 },
+
+  // Toolbox
+  toolboxBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
 });

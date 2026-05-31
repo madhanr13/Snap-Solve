@@ -36,6 +36,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { compressImageToBase64 } from '../../utils/ImageCompressor';
 import { useTheme } from '../../utils/ThemeContext';
+import { getToolbox, api, saveToHistory } from '../../utils/api';
+import { LoadingSpinner } from '../../components/LoadingSpinner';
 
 export default function ScanScreen() {
   const router = useRouter();
@@ -117,9 +119,47 @@ export default function ScanScreen() {
       await AsyncStorage.setItem('problemImageBase64', previewCompressed.base64);
       await AsyncStorage.setItem('problemImageUri', previewUri || '');
       await AsyncStorage.removeItem('problemTextDescription');
-      setPreviewUri(null);
-      setPreviewCompressed(null);
-      router.push('/(tabs)/inventory');
+
+      // Check if user has a saved toolbox
+      const toolbox = await getToolbox();
+      if (toolbox) {
+        Alert.alert(
+          'Use saved toolbox?',
+          'You have materials saved. Use them instead of taking a new photo?',
+          [
+            {
+              text: 'No, take new photo',
+              style: 'cancel',
+              onPress: () => {
+                setPreviewUri(null);
+                setPreviewCompressed(null);
+                router.push('/(tabs)/inventory');
+              },
+            },
+            {
+              text: 'Yes, use saved',
+              onPress: async () => {
+                try {
+                  // Go straight to analysis
+                  await AsyncStorage.setItem('inventoryImageBase64', toolbox);
+                  setPreviewUri(null);
+                  setPreviewCompressed(null);
+                  router.push('/(tabs)/inventory');
+                } catch (err) {
+                  Alert.alert('Error', 'Failed to use toolbox. Taking new photo instead.');
+                  setPreviewUri(null);
+                  setPreviewCompressed(null);
+                  router.push('/(tabs)/inventory');
+                }
+              },
+            },
+          ]
+        );
+      } else {
+        setPreviewUri(null);
+        setPreviewCompressed(null);
+        router.push('/(tabs)/inventory');
+      }
     } catch (error) {
       Alert.alert('Error', error instanceof Error ? error.message : 'Failed to save');
     } finally {
@@ -136,7 +176,27 @@ export default function ScanScreen() {
     await AsyncStorage.setItem('problemTextDescription', textDescription.trim());
     await AsyncStorage.removeItem('problemImageBase64');
     await AsyncStorage.removeItem('problemImageUri');
-    router.push('/(tabs)/inventory');
+
+    // Check for saved toolbox
+    const toolbox = await getToolbox();
+    if (toolbox) {
+      Alert.alert(
+        'Use saved toolbox?',
+        'Use your saved materials instead of a new photo?',
+        [
+          { text: 'No, take new photo', style: 'cancel', onPress: () => router.push('/(tabs)/inventory') },
+          {
+            text: 'Yes, use saved',
+            onPress: async () => {
+              await AsyncStorage.setItem('inventoryImageBase64', toolbox);
+              router.push('/(tabs)/inventory');
+            },
+          },
+        ]
+      );
+    } else {
+      router.push('/(tabs)/inventory');
+    }
   };
 
   const handleRetake = () => {

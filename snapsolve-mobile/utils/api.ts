@@ -17,6 +17,11 @@ interface RepairAnalysis {
   safety_warning: string;
   selected_materials: string[];
   steps: string[];
+  // V2 features
+  substitutions?: Array<{ original: string; substitute: string; notes: string }>;
+  durability_estimate?: string;
+  warning_signs?: string[];
+  permanent_fix_advice?: string;
 }
 
 interface AnalyzeRepairRequest {
@@ -99,6 +104,33 @@ export async function getHistory(): Promise<HistoryItem[]> {
 export async function clearHistory(): Promise<void> {
   // Clear local. (Backend clearing would require a new endpoint, omitted for now).
   await AsyncStorage.removeItem(HISTORY_KEY);
+}
+
+// ── Saved Toolbox ───────────────────────────────────────────────────
+
+const TOOLBOX_KEY = '@snapsolve_toolbox';
+
+export async function saveToolbox(base64Image: string): Promise<void> {
+  await AsyncStorage.setItem(TOOLBOX_KEY, base64Image);
+  // Sync to backend if authenticated
+  const token = await AsyncStorage.getItem('@snapsolve_auth_token');
+  if (token) {
+    try {
+      await axios.post(`${API_BASE_URL}/api/toolbox`, { image: base64Image }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (e) {
+      console.error('[Toolbox] Failed to sync to backend:', e);
+    }
+  }
+}
+
+export async function getToolbox(): Promise<string | null> {
+  return AsyncStorage.getItem(TOOLBOX_KEY);
+}
+
+export async function clearToolbox(): Promise<void> {
+  await AsyncStorage.removeItem(TOOLBOX_KEY);
 }
 
 // ── Repair Stats ────────────────────────────────────────────────────
@@ -244,6 +276,31 @@ class SnapSolveAPI {
     }
 
     throw error as Error;
+  }
+
+  /** V2 Feature 3: Alternative repair method */
+  async analyzeRepairAlternative(
+    imageProblem: string,
+    imageInventory: string,
+    originalSteps: string[],
+    repairStyle: 'quick' | 'heavy_duty' = 'quick'
+  ): Promise<RepairAnalysis> {
+    try {
+      const preferredModel = await getPreferredModel();
+      const payload = {
+        image_problem: imageProblem,
+        image_inventory: imageInventory,
+        original_steps: originalSteps,
+        repair_style: repairStyle,
+        ...(preferredModel && { preferred_model: preferredModel }),
+      };
+      console.log(`[API] Alternative repair → ${this.baseURL}/api/analyze-repair-alternative`);
+      const response = await this.client.post<RepairAnalysis>('/api/analyze-repair-alternative', payload);
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      throw error;
+    }
   }
 }
 
