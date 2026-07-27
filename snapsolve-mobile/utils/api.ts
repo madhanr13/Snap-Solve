@@ -1,14 +1,36 @@
 import axios, { AxiosInstance } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
 /**
  * API utility for communicating with the SnapSolve backend.
  *
  * IMPORTANT: Set USE_MOCK to true ONLY for offline development/testing.
  * When false, all API errors are surfaced to the user (no silent fallbacks).
+ *
+ * The API_BASE_URL is auto-detected from the Expo dev server's debuggerHost,
+ * so you no longer need to manually update the IP when switching networks.
  */
 
 const USE_MOCK = false;
+
+/**
+ * Auto-detect the dev machine's IP from Expo's debuggerHost.
+ * debuggerHost looks like "192.168.1.5:8081" — we extract just the IP
+ * and point to port 8000 (our FastAPI backend).
+ * Falls back to localhost for production or when detection fails.
+ */
+function getApiBaseUrl(): string {
+  const debuggerHost = Constants.expoConfig?.hostUri ?? Constants.manifest2?.extra?.expoGo?.debuggerHost;
+  if (debuggerHost) {
+    const ip = debuggerHost.split(':')[0];
+    return `http://${ip}:8000`;
+  }
+  // Fallback for production builds or when host can't be detected
+  return 'http://localhost:8000';
+}
+
+export const API_BASE_URL = getApiBaseUrl();
 
 interface RepairAnalysis {
   problem_identified: string;
@@ -195,7 +217,7 @@ class SnapSolveAPI {
   private client: AxiosInstance;
   private baseURL: string;
 
-  constructor(baseURL: string = 'http://127.0.0.1:8000') {
+  constructor(baseURL: string = API_BASE_URL) {
     this.baseURL = baseURL;
     this.client = axios.create({
       baseURL: this.baseURL,
@@ -304,7 +326,6 @@ class SnapSolveAPI {
   }
 }
 
-export const API_BASE_URL = 'http://172.20.10.2:8000';
 export const api = new SnapSolveAPI(API_BASE_URL);
 
 const MOCK_RESPONSE: RepairAnalysis = {
