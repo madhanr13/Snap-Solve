@@ -1,4 +1,4 @@
-name: Phase 7 — CI/CD Deployment & Live E2E Testing Suite
+name: "Phase 7 - CI/CD Deployment & Live E2E Testing Suite"
 
 on:
   push:
@@ -13,58 +13,58 @@ permissions:
   id-token: write
 
 env:
-  BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+  BASE_URL: "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
   PYTHONUNBUFFERED: "1"
 
 jobs:
   build-deploy-and-test:
-    name: Build, Deploy to Pages & Execute E2E Suites
+    name: "Build, Deploy to Pages & Execute E2E Suites"
     runs-on: ubuntu-latest
 
     steps:
       # Stage 1: Repository Checkout
-      - name: Stage 1: Checkout Repository
+      - name: "Stage 1: Checkout Repository"
         uses: actions/checkout@v4
 
       # Stage 2: Dependency Installation
-      - name: Stage 2: Setup Node.js Environment
+      - name: "Stage 2: Setup Node.js Environment"
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
-          cache-dependency-path: 'snapsolve-mobile/package-lock.json'
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "snapsolve-mobile/package-lock.json"
 
-      - name: Install Mobile & Frontend Dependencies
+      - name: "Install Mobile & Frontend Dependencies"
         run: |
           cd snapsolve-mobile
           npm ci
 
-      - name: Setup Python 3.12 Environment
+      - name: "Setup Python 3.12 Environment"
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-          cache: 'pip'
-          cache-dependency-path: 'snapsolve-backend/requirements.txt'
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: "snapsolve-backend/requirements.txt"
 
-      - name: Install Backend & Testing Dependencies
+      - name: "Install Backend & Testing Dependencies"
         run: |
           python -m pip install --upgrade pip
           pip install openpyxl requests selenium pytest uvicorn fastapi
 
       # Stage 3: Build Application
-      - name: Stage 3: Build Web Application
+      - name: "Stage 3: Build Web Application"
         run: |
           cd snapsolve-mobile
           npx expo export --platform web || echo "Build fallback complete"
 
       # Stage 4: Static Analysis
-      - name: Stage 4: Static Code Analysis & Verification
+      - name: "Stage 4: Static Code Analysis & Verification"
         run: |
           cd snapsolve-mobile
           npx tsc --noEmit || true
 
       # Stage 5: Deploy to GitHub Pages
-      - name: Stage 5: Deploy Static Bundle to GitHub Pages
+      - name: "Stage 5: Deploy Static Bundle to GitHub Pages"
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -72,7 +72,7 @@ jobs:
           force_orphan: true
 
       # Stage 6 & 7: Wait and Verify Deployment Availability
-      - name: Stage 6 & 7: Wait & Verify Live Deployment
+      - name: "Stage 6 & 7: Wait & Verify Live Deployment"
         run: |
           echo "Verifying live availability of $BASE_URL..."
           sleep 10
@@ -83,16 +83,16 @@ jobs:
               r = requests.get(url, timeout=15)
               print(f'Deployment Response: {r.status_code}')
           except Exception as e:
-              print(f'Deployment verification check complete (Status: 200 OK Simulated). Details: {e}')
+              print(f'Deployment verification check complete. Details: {e}')
           "
 
       # Stage 8, 9 & 10: Run E2E Test Suites & Generate Excel/HTML Reports
-      - name: Stage 8, 9 & 10: Run Selenium, Appium, Vulnerability & Load Test Suites
+      - name: "Stage 8, 9 & 10: Run Selenium, Appium, Vulnerability & Load Test Suites"
         run: |
           python automation/generate_all_reports.py
 
       # Stage 11: Upload Evidence Artifacts
-      - name: Stage 11: Upload Test Artifacts & Reports (30 Days Retention)
+      - name: "Stage 11: Upload Evidence Artifacts"
         uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -105,13 +105,13 @@ jobs:
           retention-days: 30
 
       # Stage 12: Publish GitHub Execution Summary
-      - name: Stage 12: Publish GitHub Execution Summary
+      - name: "Stage 12: Publish GitHub Execution Summary"
         if: always()
         run: |
           cat "Test Results/Summary/summary.md" >> $GITHUB_STEP_SUMMARY
 
       # Stage 13: Store Historical Results
-      - name: Stage 13: Store Historical Execution Evidence
+      - name: "Stage 13: Store Historical Execution Evidence"
         if: always()
         run: |
           mkdir -p .historical_results/${{ github.run_number }}
