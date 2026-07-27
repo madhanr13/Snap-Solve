@@ -5,7 +5,6 @@
 import React, { useEffect, useState } from 'react';
 import {
   View,
-  Text,
   ScrollView,
   TouchableOpacity,
   Switch,
@@ -25,7 +24,6 @@ import {
   LogOut,
   User,
   Package,
-  Image as ImageIcon,
 } from 'lucide-react-native';
 import { useTheme } from '../../utils/ThemeContext';
 import { useAuth } from '../../utils/AuthContext';
@@ -37,6 +35,7 @@ import {
   getToolbox,
   clearToolbox,
 } from '../../utils/api';
+import { ThemedText } from '../../components/ThemedText';
 
 export default function SettingsScreen() {
   const { colors, isDark, toggle } = useTheme();
@@ -108,7 +107,7 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
 
         {/* ── AI Model ── */}
-        <Text style={[s.sectionLabel, { color: colors.textMuted }]}>AI MODEL</Text>
+        <ThemedText weight="bold" variant="secondary" style={s.sectionLabel}>AI MODEL</ThemedText>
         <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {AVAILABLE_MODELS.map((m, idx) => {
             const isSelected = selectedModel === m.id;
@@ -128,17 +127,17 @@ export default function SettingsScreen() {
                     {isSelected && <View style={[s.radioInner, { backgroundColor: colors.accent }]} />}
                   </View>
                   <View>
-                    <Text style={[s.modelName, { color: colors.text }]}>{m.name}</Text>
+                    <ThemedText weight="medium" style={s.modelName}>{m.name}</ThemedText>
                     {m.tag ? (
                       <View style={s.tagRow}>
                         {getModelIcon(m.tag)}
-                        <Text style={[s.modelTag, {
+                        <ThemedText weight="semibold" style={[s.modelTag, {
                           color: m.tag === 'Fastest' ? '#d97706'
                             : m.tag === 'Best quality' ? '#7c3aed'
                             : colors.accent,
                         }]}>
                           {m.tag}
-                        </Text>
+                        </ThemedText>
                       </View>
                     ) : null}
                   </View>
@@ -150,7 +149,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* ── Appearance ── */}
-        <Text style={[s.sectionLabel, { color: colors.textMuted }]}>APPEARANCE</Text>
+        <ThemedText weight="bold" variant="secondary" style={s.sectionLabel}>APPEARANCE</ThemedText>
         <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={s.row}>
             <View style={s.rowLeft}>
@@ -159,7 +158,7 @@ export default function SettingsScreen() {
               ) : (
                 <Sun size={20} color="#d97706" strokeWidth={2} />
               )}
-              <Text style={[s.rowText, { color: colors.text }]}>Dark Mode</Text>
+              <ThemedText weight="medium" style={s.rowText}>Dark Mode</ThemedText>
             </View>
             <Switch
               value={isDark}
@@ -171,32 +170,32 @@ export default function SettingsScreen() {
         </View>
 
         {/* ── Data ── */}
-        <Text style={[s.sectionLabel, { color: colors.textMuted }]}>DATA</Text>
+        <ThemedText weight="bold" variant="secondary" style={s.sectionLabel}>DATA</ThemedText>
         <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <TouchableOpacity style={s.row} onPress={handleClearHistory} activeOpacity={0.6}>
             <View style={s.rowLeft}>
               <Trash2 size={20} color={colors.danger} strokeWidth={2} />
-              <Text style={[s.rowText, { color: colors.danger }]}>Clear History</Text>
+              <ThemedText weight="medium" style={[s.rowText, { color: colors.danger }]}>Clear History</ThemedText>
             </View>
           </TouchableOpacity>
         </View>
 
         {/* ── My Toolbox ── */}
-        <Text style={[s.sectionLabel, { color: colors.textMuted }]}>MY TOOLBOX</Text>
+        <ThemedText weight="bold" variant="secondary" style={s.sectionLabel}>MY TOOLBOX</ThemedText>
         <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={[s.row, { borderBottomWidth: hasToolbox ? 1 : 0, borderBottomColor: colors.borderLight }]}>
             <View style={s.rowLeft}>
               <Package size={20} color={colors.accent} strokeWidth={2} />
               <View>
-                <Text style={[s.rowText, { color: colors.text }]}>Saved Materials</Text>
-                <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+                <ThemedText weight="medium" style={s.rowText}>Saved Materials</ThemedText>
+                <ThemedText style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
                   {hasToolbox ? 'Toolbox photo saved ✓' : 'No toolbox saved yet'}
-                </Text>
+                </ThemedText>
               </View>
             </View>
             {hasToolbox && (
-              <View style={[s.toolboxBadge, { backgroundColor: isDark ? '#052e16' : '#f0fdf4' }]}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.success }}>SAVED</Text>
+              <View style={[s.toolboxBadge, { backgroundColor: isDark ? '#052e16' : '#f0fdf4', borderColor: colors.success }]}>
+                <ThemedText weight="bold" style={{ fontSize: 11, color: colors.success }}>SAVED</ThemedText>
               </View>
             )}
           </View>
@@ -204,66 +203,66 @@ export default function SettingsScreen() {
             <TouchableOpacity style={s.row} onPress={handleClearToolbox} activeOpacity={0.6}>
               <View style={s.rowLeft}>
                 <Trash2 size={20} color={colors.danger} strokeWidth={2} />
-                <Text style={[s.rowText, { color: colors.danger }]}>Remove Toolbox</Text>
+                <ThemedText weight="medium" style={[s.rowText, { color: colors.danger }]}>Remove Toolbox</ThemedText>
               </View>
             </TouchableOpacity>
           )}
           {!hasToolbox && (
             <View style={{ paddingHorizontal: 16, paddingBottom: 14 }}>
-              <Text style={{ fontSize: 12, color: colors.textMuted, lineHeight: 18 }}>
+              <ThemedText variant="secondary" style={{ fontSize: 12, lineHeight: 18 }}>
                 Take a materials photo during your next scan — you'll be asked to save it as your toolbox.
-              </Text>
+              </ThemedText>
             </View>
           )}
         </View>
 
         {/* ── About ── */}
-        <Text style={[s.sectionLabel, { color: colors.textMuted }]}>ABOUT</Text>
+        <ThemedText weight="bold" variant="secondary" style={s.sectionLabel}>ABOUT</ThemedText>
         <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={[s.row, { borderBottomWidth: 1, borderBottomColor: colors.borderLight }]}>
             <View style={s.rowLeft}>
               <Info size={20} color={colors.textSecondary} strokeWidth={2} />
-              <Text style={[s.rowText, { color: colors.text }]}>Version</Text>
+              <ThemedText weight="medium" style={s.rowText}>Version</ThemedText>
             </View>
-            <Text style={[s.rowValue, { color: colors.textMuted }]}>1.0.0</Text>
+            <ThemedText variant="secondary" style={s.rowValue}>1.0.0</ThemedText>
           </View>
           <View style={s.row}>
             <View style={s.rowLeft}>
               <Cpu size={20} color={colors.textSecondary} strokeWidth={2} />
-              <Text style={[s.rowText, { color: colors.text }]}>Engine</Text>
+              <ThemedText weight="medium" style={s.rowText}>Engine</ThemedText>
             </View>
-            <Text style={[s.rowValue, { color: colors.textMuted }]}>Google Gemini</Text>
+            <ThemedText variant="secondary" style={s.rowValue}>Google Gemini</ThemedText>
           </View>
         </View>
 
         {/* ── Tips ── */}
-        <Text style={[s.sectionLabel, { color: colors.textMuted }]}>TIPS FOR BETTER RESULTS</Text>
+        <ThemedText weight="bold" variant="secondary" style={s.sectionLabel}>TIPS FOR BETTER RESULTS</ThemedText>
         <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[s.tipsText, { color: colors.textSecondary }]}>
+          <ThemedText variant="secondary" style={s.tipsText}>
             {`• Use natural lighting — avoid harsh shadows\n`}
             {`• Capture the full damaged area, don't crop tight\n`}
             {`• Lay all materials flat on a clean surface\n`}
             {`• Keep the camera steady to avoid blur\n`}
             {`• Pro models give more detailed instructions`}
-          </Text>
+          </ThemedText>
         </View>
 
         {/* ── Account ── */}
-        <Text style={[s.sectionLabel, { color: colors.textMuted }]}>ACCOUNT</Text>
+        <ThemedText weight="bold" variant="secondary" style={s.sectionLabel}>ACCOUNT</ThemedText>
         <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={[s.row, { borderBottomWidth: 1, borderBottomColor: colors.borderLight }]}>
             <View style={s.rowLeft}>
               <User size={20} color={colors.accent} strokeWidth={2} />
-              <Text style={[s.rowText, { color: colors.text }]}>Signed in as</Text>
+              <ThemedText weight="medium" style={s.rowText}>Signed in as</ThemedText>
             </View>
-            <Text style={[s.rowValue, { color: colors.accent, fontWeight: '600' }]}>
+            <ThemedText weight="bold" style={[s.rowValue, { color: colors.accent }]}>
               {user?.display_name || user?.username || 'Unknown'}
-            </Text>
+            </ThemedText>
           </View>
           <TouchableOpacity style={s.row} onPress={handleLogout} activeOpacity={0.6}>
             <View style={s.rowLeft}>
               <LogOut size={20} color={colors.danger} strokeWidth={2} />
-              <Text style={[s.rowText, { color: colors.danger }]}>Sign Out</Text>
+              <ThemedText weight="medium" style={[s.rowText, { color: colors.danger }]}>Sign Out</ThemedText>
             </View>
           </TouchableOpacity>
         </View>
@@ -277,14 +276,14 @@ export default function SettingsScreen() {
 const s = StyleSheet.create({
   container: { flex: 1 },
   scroll: { padding: 20, paddingTop: 8 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, marginBottom: 10, marginTop: 16 },
-  card: { borderRadius: 14, borderWidth: 1, marginBottom: 4, overflow: 'hidden' },
+  sectionLabel: { fontSize: 11, letterSpacing: 1.2, marginBottom: 10, marginTop: 16 },
+  card: { borderRadius: 8, borderWidth: 1, marginBottom: 4, overflow: 'hidden' },
   row: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 14,
   },
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  rowText: { fontSize: 15, fontWeight: '500' },
+  rowText: { fontSize: 15 },
   rowValue: { fontSize: 14 },
 
   // Model rows
@@ -295,12 +294,12 @@ const s = StyleSheet.create({
   modelLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
   radioInner: { width: 10, height: 10, borderRadius: 5 },
-  modelName: { fontSize: 15, fontWeight: '500' },
+  modelName: { fontSize: 15 },
   tagRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  modelTag: { fontSize: 11, fontWeight: '600' },
+  modelTag: { fontSize: 11 },
 
   tipsText: { fontSize: 13, lineHeight: 22, padding: 16 },
 
   // Toolbox
-  toolboxBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  toolboxBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, borderWidth: 1 },
 });

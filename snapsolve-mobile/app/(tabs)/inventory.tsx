@@ -8,7 +8,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   Alert,
@@ -27,6 +26,7 @@ import { compressImageToBase64 } from '../../utils/ImageCompressor';
 import { api, saveToHistory, getToolbox, saveToolbox } from '../../utils/api';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { useTheme } from '../../utils/ThemeContext';
+import { ThemedText } from '../../components/ThemedText';
 
 export default function InventoryScreen() {
   const router = useRouter();
@@ -70,16 +70,16 @@ export default function InventoryScreen() {
           <View style={[styles.permIcon, { backgroundColor: colors.surfaceAlt }]}>
             <CameraIcon size={36} color={colors.textMuted} strokeWidth={1.5} />
           </View>
-          <Text style={[styles.permTitle, { color: colors.text }]}>Camera access needed</Text>
-          <Text style={[styles.permDesc, { color: colors.textSecondary }]}>
+          <ThemedText weight="bold" style={styles.permTitle}>Camera access needed</ThemedText>
+          <ThemedText variant="secondary" style={styles.permDesc}>
             We need your camera to photograph your available materials.
-          </Text>
+          </ThemedText>
           <TouchableOpacity
-            style={[styles.permBtn, { backgroundColor: colors.accent }]}
+            style={[styles.permBtn, { backgroundColor: colors.accent, borderColor: colors.accent }]}
             onPress={() => requestPermission()}
             activeOpacity={0.8}
           >
-            <Text style={styles.permBtnText}>Allow Camera</Text>
+            <ThemedText weight="bold" style={styles.permBtnText}>Allow Camera</ThemedText>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -155,18 +155,20 @@ export default function InventoryScreen() {
           <View style={styles.overlay}>
             <View style={styles.topRow}>
               <View style={styles.instrBlock}>
-                <Text style={styles.instrHint}>STEP 2</Text>
-                <Text style={styles.instrTitle}>What've you got?</Text>
-                <Text style={styles.instrSub}>
+                <View style={styles.pillBadge}>
+                  <ThemedText weight="bold" style={styles.instrHint}>STEP 2</ThemedText>
+                </View>
+                <ThemedText weight="bold" style={styles.instrTitle}>What've you got?</ThemedText>
+                <ThemedText style={styles.instrSub}>
                   Lay everything out — tape, glue, wire, string, whatever you can find.
-                </Text>
+                </ThemedText>
               </View>
               <TouchableOpacity
                 style={[styles.flashBtn, flashEnabled && styles.flashBtnOn]}
                 onPress={() => setFlashEnabled(!flashEnabled)}
                 activeOpacity={0.7}
               >
-                {flashEnabled ? <Zap size={18} color="#fbbf24" /> : <ZapOff size={18} color="#a8a29e" />}
+                {flashEnabled ? <Zap size={18} color="#000" /> : <ZapOff size={18} color="#fff" />}
               </TouchableOpacity>
             </View>
 
@@ -174,7 +176,9 @@ export default function InventoryScreen() {
             {problemThumb && (
               <View style={styles.thumbWrap}>
                 <Image source={{ uri: problemThumb }} style={styles.thumb} resizeMode="cover" />
-                <Text style={styles.thumbLabel}>Damage ✓</Text>
+                <View style={styles.thumbLabelBox}>
+                  <ThemedText weight="semibold" style={styles.thumbLabel}>Damage ✓</ThemedText>
+                </View>
               </View>
             )}
 
@@ -187,7 +191,7 @@ export default function InventoryScreen() {
 
             <View style={styles.bottomRow}>
               <TouchableOpacity style={styles.sideBtn} onPress={() => router.back()} activeOpacity={0.7}>
-                <ArrowLeft size={20} color="#fff" strokeWidth={2} />
+                <ArrowLeft size={20} color="#000" strokeWidth={2} />
               </TouchableOpacity>
               <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
                 <TouchableOpacity
@@ -205,7 +209,7 @@ export default function InventoryScreen() {
                   </View>
                 </TouchableOpacity>
               </Animated.View>
-              <View style={styles.sideBtn} />
+              <View style={styles.sideBtnPlaceholder} />
             </View>
           </View>
         </View>
@@ -222,52 +226,51 @@ const styles = StyleSheet.create({
 
   permBox: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   permIcon: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
-  permTitle: { fontSize: 20, fontWeight: '700', marginBottom: 10, textAlign: 'center' },
+  permTitle: { fontSize: 20, marginBottom: 10, textAlign: 'center' },
   permDesc: { fontSize: 14, textAlign: 'center', marginBottom: 28, lineHeight: 21 },
-  permBtn: { paddingHorizontal: 36, paddingVertical: 14, borderRadius: 14 },
-  permBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  permBtn: { paddingHorizontal: 36, paddingVertical: 14, borderRadius: 8, borderWidth: 1 },
+  permBtnText: { color: '#fff', fontSize: 16 },
 
   overlay: { flex: 1, justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 36 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   instrBlock: { flex: 1, marginRight: 12 },
+  pillBadge: { backgroundColor: '#fbbf24', paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start', marginBottom: 6, borderWidth: 1, borderColor: '#000' },
   instrHint: {
-    fontSize: 11, fontWeight: '700', color: '#fbbf24', letterSpacing: 1, marginBottom: 6,
-    textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
+    fontSize: 11, color: '#000', letterSpacing: 1,
   },
   instrTitle: {
-    fontSize: 24, fontWeight: '700', color: '#fff', marginBottom: 4,
-    textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
+    fontSize: 24, color: '#fff', marginBottom: 4,
+    textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2,
   },
   instrSub: {
     fontSize: 13, color: '#e7e5e4', lineHeight: 19,
-    textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
+    textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2,
   },
 
-  flashBtn: { backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 22, padding: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  flashBtnOn: { backgroundColor: 'rgba(251,191,36,0.2)', borderColor: 'rgba(251,191,36,0.5)' },
+  flashBtn: { backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 0, padding: 10, borderWidth: 1, borderColor: '#fff' },
+  flashBtnOn: { backgroundColor: '#fbbf24', borderColor: '#000' },
 
   thumbWrap: { position: 'absolute', top: 80, right: 20, alignItems: 'center', zIndex: 10 },
-  thumb: { width: 52, height: 52, borderRadius: 12, borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)' },
-  thumbLabel: {
-    marginTop: 3, fontSize: 9, color: '#fff', fontWeight: '600',
-    textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2,
-  },
+  thumb: { width: 52, height: 52, borderRadius: 0, borderWidth: 2, borderColor: '#fff' },
+  thumbLabelBox: { marginTop: 3, backgroundColor: '#000', paddingHorizontal: 4, paddingVertical: 2, borderWidth: 1, borderColor: '#fff' },
+  thumbLabel: { fontSize: 9, color: '#fff' },
 
   vf: { width: '80%', aspectRatio: 3 / 4, alignSelf: 'center' },
-  c: { position: 'absolute', width: 28, height: 28, borderColor: 'rgba(255,255,255,0.45)' },
-  cTL: { top: 0, left: 0, borderTopWidth: 2.5, borderLeftWidth: 2.5, borderTopLeftRadius: 10 },
-  cTR: { top: 0, right: 0, borderTopWidth: 2.5, borderRightWidth: 2.5, borderTopRightRadius: 10 },
-  cBL: { bottom: 0, left: 0, borderBottomWidth: 2.5, borderLeftWidth: 2.5, borderBottomLeftRadius: 10 },
-  cBR: { bottom: 0, right: 0, borderBottomWidth: 2.5, borderRightWidth: 2.5, borderBottomRightRadius: 10 },
+  c: { position: 'absolute', width: 28, height: 28, borderColor: '#fff' },
+  cTL: { top: 0, left: 0, borderTopWidth: 4, borderLeftWidth: 4 },
+  cTR: { top: 0, right: 0, borderTopWidth: 4, borderRightWidth: 4 },
+  cBL: { bottom: 0, left: 0, borderBottomWidth: 4, borderLeftWidth: 4 },
+  cBR: { bottom: 0, right: 0, borderBottomWidth: 4, borderRightWidth: 4 },
 
   bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 28 },
   sideBtn: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
+    width: 44, height: 44, backgroundColor: '#fff',
+    justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#000', borderRadius: 0,
   },
+  sideBtnPlaceholder: { width: 44, height: 44 },
   capRing: {
     width: 72, height: 72, borderRadius: 36, borderWidth: 4,
-    borderColor: 'rgba(255,255,255,0.75)', justifyContent: 'center', alignItems: 'center',
+    borderColor: '#fff', justifyContent: 'center', alignItems: 'center',
   },
   capInner: { width: 58, height: 58, borderRadius: 29, backgroundColor: '#1c1917', justifyContent: 'center', alignItems: 'center' },
   disabled: { opacity: 0.5 },

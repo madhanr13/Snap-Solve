@@ -9,49 +9,49 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type ThemeMode = 'light' | 'dark';
 
-// Warm stone palette — avoids the cold, corporate "AI look" of pure slate
+// Strict Flat Design 2.0 / Neo-brutalism light palette
 export const lightColors = {
-  bg: '#fafaf9',
-  surface: '#ffffff',
-  surfaceAlt: '#f5f5f4',
-  text: '#1c1917',
-  textSecondary: '#57534e',
-  textMuted: '#a8a29e',
-  accent: '#2563eb',
-  accentSoft: '#dbeafe',
-  border: '#e7e5e4',
-  borderLight: '#f5f5f4',
-  danger: '#dc2626',
-  dangerSoft: '#fef2f2',
-  success: '#16a34a',
-  successSoft: '#dcfce7',
-  warning: '#d97706',
-  warningSoft: '#fef3c7',
-  tabBar: '#ffffff',
-  tabBarBorder: '#e7e5e4',
-  overlay: 'rgba(0,0,0,0.04)',
+  bg: '#F8FAFC',          // slate-50
+  surface: '#FFFFFF',     // white
+  surfaceAlt: '#F1F5F9',  // slate-100
+  text: '#0F172A',        // slate-900
+  textSecondary: '#475569', // slate-600
+  textMuted: '#94A3B8',   // slate-400
+  accent: '#0055FF',      // Electric blue (solid)
+  accentSoft: '#E6EFFF',  // Electric blue 10%
+  border: '#E2E8F0',      // slate-200
+  borderLight: '#F1F5F9', // slate-100
+  danger: '#DC2626',      // red-600
+  dangerSoft: '#FEF2F2',  // red-50
+  success: '#16A34A',     // green-600
+  successSoft: '#DCFCE7', // green-50
+  warning: '#D97706',     // amber-600
+  warningSoft: '#FEF3C7', // amber-50
+  tabBar: '#FFFFFF',
+  tabBarBorder: '#E2E8F0',
+  overlay: 'rgba(15,23,42,0.1)',
 };
 
 export const darkColors = {
-  bg: '#0c0a09',
-  surface: '#1c1917',
-  surfaceAlt: '#292524',
-  text: '#fafaf9',
-  textSecondary: '#a8a29e',
-  textMuted: '#78716c',
-  accent: '#60a5fa',
-  accentSoft: '#1e3a5f',
-  border: '#292524',
-  borderLight: '#1c1917',
-  danger: '#f87171',
-  dangerSoft: '#450a0a',
-  success: '#4ade80',
-  successSoft: '#052e16',
-  warning: '#fbbf24',
-  warningSoft: '#451a03',
-  tabBar: '#1c1917',
-  tabBarBorder: '#292524',
-  overlay: 'rgba(255,255,255,0.04)',
+  bg: '#020617',          // slate-950
+  surface: '#0F172A',     // slate-900
+  surfaceAlt: '#1E293B',  // slate-800
+  text: '#F8FAFC',        // slate-50
+  textSecondary: '#94A3B8', // slate-400
+  textMuted: '#64748B',   // slate-500
+  accent: '#3377FF',      // Brighter electric blue for dark mode
+  accentSoft: '#001A4D',  // Dark blue tint
+  border: '#1E293B',      // slate-800
+  borderLight: '#0F172A', // slate-900
+  danger: '#F87171',      // red-400
+  dangerSoft: '#450A0A',  // red-950
+  success: '#4ADE80',     // green-400
+  successSoft: '#052E16', // green-950
+  warning: '#FBBF24',     // amber-400
+  warningSoft: '#451A03', // amber-950
+  tabBar: '#0F172A',
+  tabBarBorder: '#1E293B',
+  overlay: 'rgba(255,255,255,0.05)',
 };
 
 export type ThemeColors = typeof lightColors;

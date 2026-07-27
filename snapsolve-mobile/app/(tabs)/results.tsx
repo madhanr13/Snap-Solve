@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Share } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Alert, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -13,6 +13,7 @@ import { RotateCcw, Share2, Wrench } from 'lucide-react-native';
 import { ResultsContent } from '../../components/ResultsContent';
 import { useTheme } from '../../utils/ThemeContext';
 import type { RepairAnalysis } from '../../utils/api';
+import { ThemedText } from '../../components/ThemedText';
 
 export default function ResultsScreen() {
   const router = useRouter();
@@ -63,16 +64,16 @@ export default function ResultsScreen() {
           <View style={[s.emptyIcon, { backgroundColor: colors.surfaceAlt }]}>
             <Wrench size={40} color={colors.textMuted} strokeWidth={1.5} />
           </View>
-          <Text style={[s.emptyTitle, { color: colors.text }]}>No fix yet</Text>
-          <Text style={[s.emptyDesc, { color: colors.textSecondary }]}>
+          <ThemedText weight="bold" style={s.emptyTitle}>No fix yet</ThemedText>
+          <ThemedText variant="secondary" style={s.emptyDesc}>
             Snap a photo of the damage and your materials to get a repair guide.
-          </Text>
+          </ThemedText>
           <TouchableOpacity
-            style={[s.emptyBtn, { backgroundColor: colors.accent }]}
+            style={[s.emptyBtn, { backgroundColor: colors.accent, borderColor: colors.accent }]}
             onPress={() => router.push('/(tabs)/')}
             activeOpacity={0.8}
           >
-            <Text style={s.emptyBtnText}>Go home</Text>
+            <ThemedText weight="bold" style={s.emptyBtnText}>Go home</ThemedText>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -84,11 +85,11 @@ export default function ResultsScreen() {
       <View style={[s.bar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity style={[s.barBtn, { borderColor: colors.border }]} onPress={handleShare} activeOpacity={0.7}>
           <Share2 size={15} color={colors.textSecondary} strokeWidth={2} />
-          <Text style={[s.barBtnText, { color: colors.textSecondary }]}>Share</Text>
+          <ThemedText weight="semibold" variant="secondary" style={s.barBtnText}>Share</ThemedText>
         </TouchableOpacity>
         <TouchableOpacity style={[s.barBtn, s.barBtnPrimary]} onPress={handleNew} activeOpacity={0.7}>
           <RotateCcw size={15} color="#fff" strokeWidth={2} />
-          <Text style={s.barBtnPrimaryText}>New fix</Text>
+          <ThemedText weight="semibold" style={s.barBtnPrimaryText}>New fix</ThemedText>
         </TouchableOpacity>
       </View>
       <ResultsContent analysis={analysis} />
@@ -104,15 +105,15 @@ const s = StyleSheet.create({
   },
   barBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1,
   },
-  barBtnText: { fontSize: 13, fontWeight: '600' },
+  barBtnText: { fontSize: 13 },
   barBtnPrimary: { backgroundColor: '#1c1917', borderColor: '#1c1917' },
-  barBtnPrimaryText: { fontSize: 13, fontWeight: '600', color: '#fff' },
+  barBtnPrimaryText: { fontSize: 13, color: '#fff' },
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
   emptyIcon: { width: 88, height: 88, borderRadius: 44, justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
-  emptyTitle: { fontSize: 22, fontWeight: '700', marginBottom: 10, textAlign: 'center' },
+  emptyTitle: { fontSize: 22, marginBottom: 10, textAlign: 'center' },
   emptyDesc: { fontSize: 14, textAlign: 'center', marginBottom: 32, lineHeight: 21 },
-  emptyBtn: { paddingHorizontal: 40, paddingVertical: 14, borderRadius: 14 },
-  emptyBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  emptyBtn: { paddingHorizontal: 40, paddingVertical: 14, borderRadius: 8, borderWidth: 1 },
+  emptyBtnText: { color: '#fff', fontSize: 16 },
 });

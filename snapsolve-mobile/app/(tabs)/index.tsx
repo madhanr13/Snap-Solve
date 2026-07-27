@@ -6,7 +6,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
-  Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -29,6 +28,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../utils/ThemeContext';
 import { getHistory, getRepairStats } from '../../utils/api';
 import type { HistoryItem, RepairStats } from '../../utils/api';
+import { ThemedText } from '../../components/ThemedText';
 
 function timeAgo(ts: number): string {
   const diff = Date.now() - ts;
@@ -42,7 +42,6 @@ function timeAgo(ts: number): string {
   if (days < 7) return `${days}d ago`;
   return new Date(ts).toLocaleDateString();
 }
-
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -90,19 +89,19 @@ export default function HomeScreen() {
         {/* ── Quick Start Card ── */}
         <Animated.View style={anim(0)}>
           <TouchableOpacity
-            style={[s.heroCard, { backgroundColor: isDark ? '#1a1a2e' : '#0f172a' }]}
+            style={[s.heroCard, { backgroundColor: colors.accent, borderColor: colors.accent }]}
             onPress={() => router.push('/(tabs)/scan')}
             activeOpacity={0.9}
           >
             <View style={s.heroRow}>
               <View style={s.heroContent}>
-                <Text style={s.heroTitle}>Fix something</Text>
-                <Text style={s.heroDesc}>
+                <ThemedText weight="bold" style={s.heroTitle}>Fix something</ThemedText>
+                <ThemedText style={s.heroDesc}>
                   Snap two photos and get an AI repair guide.
-                </Text>
+                </ThemedText>
               </View>
               <View style={s.heroArrow}>
-                <ArrowRight size={20} color="#ffffff" strokeWidth={2} />
+                <ArrowRight size={20} color={colors.bg} strokeWidth={2} />
               </View>
             </View>
           </TouchableOpacity>
@@ -114,18 +113,18 @@ export default function HomeScreen() {
             <View style={[s.statsRow, { marginHorizontal: 20, marginTop: 16 }]}>
               <View style={[s.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <Trophy size={18} color={colors.accent} strokeWidth={2} />
-                <Text style={[s.statNum, { color: colors.text }]}>{stats.total}</Text>
-                <Text style={[s.statLabel, { color: colors.textMuted }]}>Total fixes</Text>
+                <ThemedText weight="bold" style={s.statNum}>{stats.total}</ThemedText>
+                <ThemedText weight="semibold" variant="muted" style={s.statLabel}>Total fixes</ThemedText>
               </View>
               <View style={[s.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <TrendingUp size={18} color="#16a34a" strokeWidth={2} />
-                <Text style={[s.statNum, { color: colors.text }]}>{stats.thisWeek}</Text>
-                <Text style={[s.statLabel, { color: colors.textMuted }]}>This week</Text>
+                <TrendingUp size={18} color={colors.success} strokeWidth={2} />
+                <ThemedText weight="bold" style={s.statNum}>{stats.thisWeek}</ThemedText>
+                <ThemedText weight="semibold" variant="muted" style={s.statLabel}>This week</ThemedText>
               </View>
               <View style={[s.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Flame size={18} color="#f97316" strokeWidth={2} />
-                <Text style={[s.statNum, { color: colors.text }]}>{stats.streak}</Text>
-                <Text style={[s.statLabel, { color: colors.textMuted }]}>Day streak</Text>
+                <Flame size={18} color={colors.danger} strokeWidth={2} />
+                <ThemedText weight="bold" style={s.statNum}>{stats.streak}</ThemedText>
+                <ThemedText weight="semibold" variant="muted" style={s.statLabel}>Day streak</ThemedText>
               </View>
             </View>
           </Animated.View>
@@ -136,10 +135,10 @@ export default function HomeScreen() {
           <View style={s.sectionHeader}>
             <View style={s.sectionHeaderLeft}>
               <Clock size={14} color={colors.textMuted} strokeWidth={2} />
-              <Text style={[s.sectionLabel, { color: colors.textMuted }]}>RECENT FIXES</Text>
+              <ThemedText weight="bold" variant="muted" style={s.sectionLabel}>RECENT FIXES</ThemedText>
             </View>
             {history.length > 0 && (
-              <Text style={[s.historyCount, { color: colors.textMuted }]}>{history.length}</Text>
+              <ThemedText weight="semibold" variant="muted" style={s.historyCount}>{history.length}</ThemedText>
             )}
           </View>
 
@@ -147,10 +146,10 @@ export default function HomeScreen() {
             /* Empty state */
             <View style={[s.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <Wrench size={32} color={colors.textMuted} strokeWidth={1.5} />
-              <Text style={[s.emptyTitle, { color: colors.textSecondary }]}>No fixes yet</Text>
-              <Text style={[s.emptyDesc, { color: colors.textMuted }]}>
+              <ThemedText weight="semibold" style={s.emptyTitle}>No fixes yet</ThemedText>
+              <ThemedText variant="muted" style={s.emptyDesc}>
                 Your repair history will show up here after your first analysis.
-              </Text>
+              </ThemedText>
             </View>
           ) : (
             /* History list */
@@ -162,18 +161,18 @@ export default function HomeScreen() {
                     key={item.id}
                     style={[
                       s.historyItem,
-                      !isLast && { borderBottomWidth: 1, borderBottomColor: colors.borderLight },
+                      !isLast && { borderBottomWidth: 1, borderBottomColor: colors.border },
                     ]}
                     onPress={() => handleOpenHistory(item)}
                     activeOpacity={0.6}
                   >
                     <View style={s.historyItemContent}>
-                      <Text style={[s.historyProblem, { color: colors.text }]} numberOfLines={2}>
+                      <ThemedText weight="medium" style={s.historyProblem} numberOfLines={2}>
                         {item.problem}
-                      </Text>
-                      <Text style={[s.historyTime, { color: colors.textMuted }]}>
+                      </ThemedText>
+                      <ThemedText variant="muted" style={s.historyTime}>
                         {timeAgo(item.timestamp)}
-                      </Text>
+                      </ThemedText>
                     </View>
                     <ChevronRight size={16} color={colors.textMuted} strokeWidth={2} />
                   </TouchableOpacity>
@@ -188,18 +187,18 @@ export default function HomeScreen() {
           <View style={s.sectionHeader}>
             <View style={s.sectionHeaderLeft}>
               <Sparkles size={14} color={colors.textMuted} strokeWidth={2} />
-              <Text style={[s.sectionLabel, { color: colors.textMuted }]}>QUICK TIPS</Text>
+              <ThemedText weight="bold" variant="muted" style={s.sectionLabel}>QUICK TIPS</ThemedText>
             </View>
           </View>
           <View style={[s.tipsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[s.tipLine, { color: colors.textSecondary }]}>💡  Good lighting = better AI results</Text>
-            <Text style={[s.tipLine, { color: colors.textSecondary }]}>📐  Show the full damage, not just a corner</Text>
-            <Text style={[s.tipLine, { color: colors.textSecondary }]}>🧰  Lay materials flat for best detection</Text>
+            <ThemedText variant="secondary" style={s.tipLine}>💡  Good lighting = better AI results</ThemedText>
+            <ThemedText variant="secondary" style={s.tipLine}>📐  Show the full damage, not just a corner</ThemedText>
+            <ThemedText variant="secondary" style={s.tipLine}>🧰  Lay materials flat for best detection</ThemedText>
           </View>
         </Animated.View>
 
         <View style={s.footer}>
-          <Text style={[s.footerText, { color: colors.textMuted }]}>Powered by Google Gemini AI</Text>
+          <ThemedText weight="medium" variant="muted" style={s.footerText}>Powered by Google Gemini AI</ThemedText>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -211,13 +210,13 @@ const s = StyleSheet.create({
   scroll: { paddingBottom: 24 },
 
   // Hero
-  heroCard: { marginHorizontal: 20, marginTop: 12, borderRadius: 18, overflow: 'hidden' },
+  heroCard: { marginHorizontal: 20, marginTop: 12, borderRadius: 8, borderWidth: 1, overflow: 'hidden' },
   heroRow: { flexDirection: 'row', alignItems: 'center', padding: 20 },
   heroContent: { flex: 1 },
-  heroTitle: { fontSize: 20, fontWeight: '700', color: '#fff', marginBottom: 6 },
-  heroDesc: { fontSize: 13, color: 'rgba(255,255,255,0.65)', lineHeight: 19 },
+  heroTitle: { fontSize: 20, color: '#fff', marginBottom: 6 },
+  heroDesc: { fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 19 },
   heroArrow: {
-    width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.12)',
+    width: 40, height: 40, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center', alignItems: 'center', marginLeft: 12,
   },
 
@@ -227,42 +226,42 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, marginTop: 28, marginBottom: 10,
   },
   sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2 },
-  historyCount: { fontSize: 12, fontWeight: '600' },
+  sectionLabel: { fontSize: 11, letterSpacing: 1.2 },
+  historyCount: { fontSize: 12 },
 
   // Empty state
   emptyCard: {
-    marginHorizontal: 20, borderRadius: 14, borderWidth: 1, padding: 32,
+    marginHorizontal: 20, borderRadius: 8, borderWidth: 1, padding: 32,
     alignItems: 'center',
   },
-  emptyTitle: { fontSize: 16, fontWeight: '600', marginTop: 14, marginBottom: 6 },
+  emptyTitle: { fontSize: 16, marginTop: 14, marginBottom: 6 },
   emptyDesc: { fontSize: 13, textAlign: 'center', lineHeight: 19 },
 
   // History list
-  historyList: { marginHorizontal: 20, borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
+  historyList: { marginHorizontal: 20, borderRadius: 8, borderWidth: 1, overflow: 'hidden' },
   historyItem: {
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14,
   },
   historyItemContent: { flex: 1 },
-  historyProblem: { fontSize: 14, fontWeight: '500', lineHeight: 20, marginBottom: 6 },
+  historyProblem: { fontSize: 14, lineHeight: 20, marginBottom: 6 },
   historyTime: { fontSize: 12 },
 
   // Stats
   statsRow: { flexDirection: 'row', gap: 8 },
   statCard: {
-    flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 14,
+    flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 8,
     borderWidth: 1, gap: 4,
   },
-  statNum: { fontSize: 22, fontWeight: '800' },
-  statLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 0.5 },
+  statNum: { fontSize: 22 },
+  statLabel: { fontSize: 10, letterSpacing: 0.5 },
 
   // Tips
   tipsCard: {
-    marginHorizontal: 20, borderRadius: 14, borderWidth: 1, padding: 16, gap: 10,
+    marginHorizontal: 20, borderRadius: 8, borderWidth: 1, padding: 16, gap: 10,
   },
   tipLine: { fontSize: 13, lineHeight: 18 },
 
   // Footer
   footer: { alignItems: 'center', paddingTop: 32, paddingBottom: 8 },
-  footerText: { fontSize: 12, fontWeight: '500' },
+  footerText: { fontSize: 12 },
 });

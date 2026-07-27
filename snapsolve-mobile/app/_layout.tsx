@@ -6,8 +6,13 @@
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
+import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { ThemeProvider } from '../utils/ThemeContext';
 import { AuthProvider, useAuth } from '../utils/AuthContext';
+
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync();
 
 function AuthGate() {
   const { user, isLoading } = useAuth();
@@ -31,7 +36,7 @@ function AuthGate() {
   if (isLoading) {
     return (
       <View style={s.loading}>
-        <ActivityIndicator size="large" color="#2563eb" />
+        <ActivityIndicator size="large" color="#0055FF" />
       </View>
     );
   }
@@ -40,10 +45,27 @@ function AuthGate() {
 }
 
 const s = StyleSheet.create({
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fafaf9' },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
 });
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
     <ThemeProvider>
       <AuthProvider>

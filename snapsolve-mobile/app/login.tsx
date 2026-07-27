@@ -5,7 +5,6 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -20,6 +19,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '../utils/ThemeContext';
 import { useAuth } from '../utils/AuthContext';
 import { AppLogo } from '../components/AppLogo';
+import { ThemedText } from '../components/ThemedText';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -61,26 +61,26 @@ export default function LoginScreen() {
           {/* Logo / branding */}
           <View style={s.logoArea}>
             <AppLogo width="100%" height={100} />
-            <Text style={[s.appName, { color: colors.text, marginTop: 16 }]}>SnapSolve</Text>
-            <Text style={[s.tagline, { color: colors.textMuted }]}>
+            <ThemedText weight="bold" style={[s.appName, { marginTop: 16 }]}>SnapSolve</ThemedText>
+            <ThemedText variant="muted" style={s.tagline}>
               AI-powered repair guides
-            </Text>
+            </ThemedText>
           </View>
 
           {/* Form */}
           <View style={s.form}>
-            <Text style={[s.formTitle, { color: colors.text }]}>Welcome back</Text>
+            <ThemedText weight="bold" style={s.formTitle}>Welcome back</ThemedText>
 
             {error ? (
               <View style={[s.errorBox, { backgroundColor: colors.dangerSoft, borderColor: colors.danger }]}>
-                <Text style={[s.errorText, { color: isDark ? '#fca5a5' : '#991b1b' }]}>{error}</Text>
+                <ThemedText weight="medium" variant="danger" style={s.errorText}>{error}</ThemedText>
               </View>
             ) : null}
 
             <View style={[s.inputWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <User size={18} color={colors.textMuted} strokeWidth={2} />
               <TextInput
-                style={[s.input, { color: colors.text }]}
+                style={[s.input, { color: colors.text, fontFamily: 'Inter_400Regular' }]}
                 placeholder="Username"
                 placeholderTextColor={colors.textMuted}
                 value={username}
@@ -93,7 +93,7 @@ export default function LoginScreen() {
             <View style={[s.inputWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <Lock size={18} color={colors.textMuted} strokeWidth={2} />
               <TextInput
-                style={[s.input, { color: colors.text }]}
+                style={[s.input, { color: colors.text, fontFamily: 'Inter_400Regular' }]}
                 placeholder="Password"
                 placeholderTextColor={colors.textMuted}
                 value={password}
@@ -103,7 +103,7 @@ export default function LoginScreen() {
             </View>
 
             <TouchableOpacity
-              style={[s.button, { backgroundColor: colors.success }]}
+              style={[s.button, { backgroundColor: colors.success, borderColor: colors.success }]}
               onPress={handleLogin}
               disabled={loading}
               activeOpacity={0.8}
@@ -113,7 +113,7 @@ export default function LoginScreen() {
               ) : (
                 <>
                   <LogIn size={18} color="#fff" strokeWidth={2.5} />
-                  <Text style={s.buttonText}>Sign In</Text>
+                  <ThemedText weight="bold" style={s.buttonText}>Sign In</ThemedText>
                 </>
               )}
             </TouchableOpacity>
@@ -121,11 +121,11 @@ export default function LoginScreen() {
 
           {/* Register link */}
           <View style={s.footer}>
-            <Text style={[s.footerText, { color: colors.textMuted }]}>
+            <ThemedText variant="muted" style={s.footerText}>
               Don't have an account?{' '}
-            </Text>
+            </ThemedText>
             <TouchableOpacity onPress={() => router.replace('/register')}>
-              <Text style={[s.footerLink, { color: colors.accent }]}>Sign Up</Text>
+              <ThemedText weight="bold" variant="accent" style={s.footerLink}>Sign Up</ThemedText>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -140,35 +140,35 @@ const s = StyleSheet.create({
 
   // Logo
   logoArea: { alignItems: 'center', marginBottom: 40 },
-  appName: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
+  appName: { fontSize: 28, letterSpacing: -0.5 },
   tagline: { fontSize: 14, marginTop: 4 },
 
   // Form
   form: { gap: 14 },
-  formTitle: { fontSize: 22, fontWeight: '700', marginBottom: 4 },
+  formTitle: { fontSize: 22, marginBottom: 4 },
 
   // Error
   errorBox: {
-    padding: 12, borderRadius: 10, borderWidth: 1, borderLeftWidth: 4,
+    padding: 12, borderRadius: 6, borderWidth: 1, borderLeftWidth: 4,
   },
-  errorText: { fontSize: 13, fontWeight: '500' },
+  errorText: { fontSize: 13 },
 
   // Input
   inputWrap: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    borderWidth: 1, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 4,
+    borderWidth: 1, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 4,
   },
   input: { flex: 1, fontSize: 15, paddingVertical: 14 },
 
   // Button
   button: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 16, borderRadius: 14, marginTop: 4,
+    paddingVertical: 16, borderRadius: 8, borderWidth: 1, marginTop: 4,
   },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  buttonText: { color: '#fff', fontSize: 16 },
 
   // Footer
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 28 },
   footerText: { fontSize: 14 },
-  footerLink: { fontSize: 14, fontWeight: '700' },
+  footerLink: { fontSize: 14 },
 });

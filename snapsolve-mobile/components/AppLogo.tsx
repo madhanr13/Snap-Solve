@@ -10,12 +10,12 @@
 
 import React from 'react';
 import { Wrench } from 'lucide-react-native';
-import { Image } from 'react-native';
+import { Image, DimensionValue } from 'react-native';
 
 export interface AppLogoProps {
-  size?: number | string;
-  width?: number | string;
-  height?: number | string;
+  size?: DimensionValue;
+  width?: DimensionValue;
+  height?: DimensionValue;
   color?: string;
   strokeWidth?: number;
 }

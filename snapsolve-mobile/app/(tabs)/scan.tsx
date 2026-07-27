@@ -5,10 +5,9 @@
  * navigating between tabs. This prevents the blank camera issue.
  */
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   Alert,
@@ -21,7 +20,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused, useFocusEffect } from '@react-navigation/native';
 import {
   Camera as CameraIcon,
   Check,
@@ -38,6 +37,7 @@ import { compressImageToBase64 } from '../../utils/ImageCompressor';
 import { useTheme } from '../../utils/ThemeContext';
 import { getToolbox, api, saveToHistory } from '../../utils/api';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
+import { ThemedText } from '../../components/ThemedText';
 
 export default function ScanScreen() {
   const router = useRouter();
@@ -70,6 +70,13 @@ export default function ScanScreen() {
     if (!permission?.granted && permission?.canAskAgain) requestPermission();
   }, [permission, requestPermission]);
 
+  // Clear old analysis when starting a new scan flow
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.removeItem('repairAnalysis');
+    }, [])
+  );
+
   // Permission screen
   if (!permission?.granted) {
     return (
@@ -78,16 +85,16 @@ export default function ScanScreen() {
           <View style={[styles.permIcon, { backgroundColor: colors.surfaceAlt }]}>
             <CameraIcon size={36} color={colors.textMuted} strokeWidth={1.5} />
           </View>
-          <Text style={[styles.permTitle, { color: colors.text }]}>Camera access needed</Text>
-          <Text style={[styles.permDesc, { color: colors.textSecondary }]}>
+          <ThemedText weight="bold" style={styles.permTitle}>Camera access needed</ThemedText>
+          <ThemedText variant="secondary" style={styles.permDesc}>
             We need your camera to take photos of the damage and your materials.
-          </Text>
+          </ThemedText>
           <TouchableOpacity
-            style={[styles.permBtn, { backgroundColor: colors.accent }]}
+            style={[styles.permBtn, { backgroundColor: colors.accent, borderColor: colors.accent }]}
             onPress={() => requestPermission()}
             activeOpacity={0.8}
           >
-            <Text style={styles.permBtnText}>Allow Camera</Text>
+            <ThemedText weight="bold" style={styles.permBtnText}>Allow Camera</ThemedText>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -213,24 +220,24 @@ export default function ScanScreen() {
           <View style={styles.previewOverlay}>
             <View style={styles.previewTop}>
               <View style={styles.previewBadge}>
-                <Text style={styles.previewBadgeText}>Looking good?</Text>
+                <ThemedText weight="bold" style={styles.previewBadgeText}>Looking good?</ThemedText>
               </View>
-              <Text style={styles.previewMeta}>
+              <ThemedText style={styles.previewMeta}>
                 {previewCompressed.width}×{previewCompressed.height}px
-              </Text>
+              </ThemedText>
             </View>
             <View style={styles.previewBtns}>
               <TouchableOpacity style={styles.pBtnOutline} onPress={handleRetake} disabled={isSaving} activeOpacity={0.8}>
-                <X size={20} color="#fff" strokeWidth={2.5} />
-                <Text style={styles.pBtnOutlineText}>Retake</Text>
+                <X size={20} color="#000" strokeWidth={2.5} />
+                <ThemedText weight="semibold" style={styles.pBtnOutlineText}>Retake</ThemedText>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.pBtnFilled} onPress={handleConfirm} disabled={isSaving} activeOpacity={0.8}>
+              <TouchableOpacity style={[styles.pBtnFilled, { backgroundColor: colors.success, borderColor: colors.success }]} onPress={handleConfirm} disabled={isSaving} activeOpacity={0.8}>
                 {isSaving ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <>
                     <Check size={20} color="#fff" strokeWidth={2.5} />
-                    <Text style={styles.pBtnFilledText}>Use this</Text>
+                    <ThemedText weight="semibold" style={styles.pBtnFilledText}>Use this</ThemedText>
                   </>
                 )}
               </TouchableOpacity>
@@ -248,18 +255,18 @@ export default function ScanScreen() {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.textModeWrap}>
             <TouchableOpacity
-              style={[styles.modeToggle, { backgroundColor: colors.surfaceAlt }]}
+              style={[styles.modeToggle, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
               onPress={() => setTextMode(false)}
               activeOpacity={0.7}
             >
               <CamSwitch size={16} color={colors.accent} strokeWidth={2} />
-              <Text style={[styles.modeToggleText, { color: colors.accent }]}>Switch to camera</Text>
+              <ThemedText weight="semibold" style={[styles.modeToggleText, { color: colors.accent }]}>Switch to camera</ThemedText>
             </TouchableOpacity>
 
-            <Text style={[styles.textModeTitle, { color: colors.text }]}>Describe what's broken</Text>
-            <Text style={[styles.textModeDesc, { color: colors.textSecondary }]}>
+            <ThemedText weight="bold" style={styles.textModeTitle}>Describe what's broken</ThemedText>
+            <ThemedText variant="secondary" style={styles.textModeDesc}>
               No camera? No problem. Tell us what needs fixing.
-            </Text>
+            </ThemedText>
 
             <TextInput
               style={[
@@ -268,6 +275,7 @@ export default function ScanScreen() {
                   backgroundColor: colors.surface,
                   borderColor: colors.border,
                   color: colors.text,
+                  fontFamily: 'Inter_400Regular'
                 },
               ]}
               placeholder="e.g. Broken chair leg, clean snap at the joint..."
@@ -280,12 +288,12 @@ export default function ScanScreen() {
             />
 
             <TouchableOpacity
-              style={[styles.textConfirmBtn, { backgroundColor: colors.accent }]}
+              style={[styles.textConfirmBtn, { backgroundColor: colors.accent, borderColor: colors.accent }]}
               onPress={handleTextConfirm}
               activeOpacity={0.8}
             >
               <Check size={20} color="#fff" strokeWidth={2.5} />
-              <Text style={styles.textConfirmBtnText}>Continue to materials</Text>
+              <ThemedText weight="semibold" style={styles.textConfirmBtnText}>Continue to materials</ThemedText>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -309,11 +317,13 @@ export default function ScanScreen() {
           <View style={styles.overlay}>
             <View style={styles.topRow}>
               <View style={styles.instrBlock}>
-                <Text style={styles.instrHint}>STEP 1</Text>
-                <Text style={styles.instrTitle}>What's broken?</Text>
-                <Text style={styles.instrSub}>
+                <View style={styles.pillBadge}>
+                  <ThemedText weight="bold" style={styles.instrHint}>STEP 1</ThemedText>
+                </View>
+                <ThemedText weight="bold" style={styles.instrTitle}>What's broken?</ThemedText>
+                <ThemedText style={styles.instrSub}>
                   Get the whole thing in frame — the more we can see, the better the fix.
-                </Text>
+                </ThemedText>
               </View>
               <View style={styles.topBtns}>
                 <TouchableOpacity
@@ -321,14 +331,14 @@ export default function ScanScreen() {
                   onPress={() => setFlashEnabled(!flashEnabled)}
                   activeOpacity={0.7}
                 >
-                  {flashEnabled ? <Zap size={18} color="#fbbf24" /> : <ZapOff size={18} color="#a8a29e" />}
+                  {flashEnabled ? <Zap size={18} color="#000" /> : <ZapOff size={18} color="#fff" />}
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.textModeBtn}
                   onPress={() => setTextMode(true)}
                   activeOpacity={0.7}
                 >
-                  <Type size={16} color="#fff" strokeWidth={2} />
+                  <Type size={16} color="#000" strokeWidth={2} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -357,7 +367,7 @@ export default function ScanScreen() {
                   </View>
                 </TouchableOpacity>
               </Animated.View>
-              <Text style={styles.capHint}>{isProcessing ? 'Processing...' : 'Tap to capture'}</Text>
+              <ThemedText weight="medium" style={styles.capHint}>{isProcessing ? 'Processing...' : 'Tap to capture'}</ThemedText>
             </View>
           </View>
         </View>
@@ -376,49 +386,49 @@ const styles = StyleSheet.create({
   // Permission
   permBox: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   permIcon: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
-  permTitle: { fontSize: 20, fontWeight: '700', marginBottom: 10, textAlign: 'center' },
+  permTitle: { fontSize: 20, marginBottom: 10, textAlign: 'center' },
   permDesc: { fontSize: 14, textAlign: 'center', marginBottom: 28, lineHeight: 21, paddingHorizontal: 20 },
-  permBtn: { paddingHorizontal: 36, paddingVertical: 14, borderRadius: 14 },
-  permBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  permBtn: { paddingHorizontal: 36, paddingVertical: 14, borderRadius: 8, borderWidth: 1 },
+  permBtnText: { color: '#fff', fontSize: 16 },
 
   // Overlay
   overlay: { flex: 1, justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 36 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   topBtns: { flexDirection: 'column', gap: 8 },
   instrBlock: { flex: 1, marginRight: 12 },
+  pillBadge: { backgroundColor: '#60a5fa', paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start', marginBottom: 6, borderWidth: 1, borderColor: '#000' },
   instrHint: {
-    fontSize: 11, fontWeight: '700', color: '#60a5fa', letterSpacing: 1, marginBottom: 6,
-    textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
+    fontSize: 11, color: '#000', letterSpacing: 1,
   },
   instrTitle: {
-    fontSize: 24, fontWeight: '700', color: '#fff', marginBottom: 4,
-    textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
+    fontSize: 24, color: '#fff', marginBottom: 4,
+    textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2,
   },
   instrSub: {
     fontSize: 13, color: '#e7e5e4', lineHeight: 19,
-    textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
+    textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2,
   },
 
   // Flash
-  flashBtn: { backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 22, padding: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  flashBtnOn: { backgroundColor: 'rgba(251,191,36,0.2)', borderColor: 'rgba(251,191,36,0.5)' },
+  flashBtn: { backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 0, padding: 10, borderWidth: 1, borderColor: '#fff' },
+  flashBtnOn: { backgroundColor: '#fbbf24', borderColor: '#000' },
 
   // Viewfinder
   vf: { width: '80%', aspectRatio: 3 / 4, alignSelf: 'center' },
-  c: { position: 'absolute', width: 28, height: 28, borderColor: 'rgba(255,255,255,0.45)' },
-  cTL: { top: 0, left: 0, borderTopWidth: 2.5, borderLeftWidth: 2.5, borderTopLeftRadius: 10 },
-  cTR: { top: 0, right: 0, borderTopWidth: 2.5, borderRightWidth: 2.5, borderTopRightRadius: 10 },
-  cBL: { bottom: 0, left: 0, borderBottomWidth: 2.5, borderLeftWidth: 2.5, borderBottomLeftRadius: 10 },
-  cBR: { bottom: 0, right: 0, borderBottomWidth: 2.5, borderRightWidth: 2.5, borderBottomRightRadius: 10 },
+  c: { position: 'absolute', width: 28, height: 28, borderColor: '#fff' },
+  cTL: { top: 0, left: 0, borderTopWidth: 4, borderLeftWidth: 4 },
+  cTR: { top: 0, right: 0, borderTopWidth: 4, borderRightWidth: 4 },
+  cBL: { bottom: 0, left: 0, borderBottomWidth: 4, borderLeftWidth: 4 },
+  cBR: { bottom: 0, right: 0, borderBottomWidth: 4, borderRightWidth: 4 },
 
   // Capture
   bottomCol: { alignItems: 'center', gap: 10 },
   capRing: {
     width: 72, height: 72, borderRadius: 36, borderWidth: 4,
-    borderColor: 'rgba(255,255,255,0.75)', justifyContent: 'center', alignItems: 'center',
+    borderColor: '#fff', justifyContent: 'center', alignItems: 'center',
   },
   capInner: { width: 58, height: 58, borderRadius: 29, backgroundColor: '#1c1917', justifyContent: 'center', alignItems: 'center' },
-  capHint: { color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: '500' },
+  capHint: { color: 'rgba(255,255,255,0.8)', fontSize: 12 },
   disabled: { opacity: 0.5 },
 
   // Preview
@@ -429,42 +439,42 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 36,
   },
   previewTop: { alignItems: 'center' },
-  previewBadge: { backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20, marginBottom: 4 },
-  previewBadgeText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  previewBadge: { backgroundColor: '#000', paddingHorizontal: 18, paddingVertical: 8, borderRadius: 6, marginBottom: 4, borderWidth: 1, borderColor: '#fff' },
+  previewBadgeText: { fontSize: 16, color: '#fff' },
   previewMeta: { fontSize: 12, color: '#a8a29e' },
   previewBtns: { flexDirection: 'row', gap: 12, justifyContent: 'center' },
   pBtnOutline: {
     flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, paddingVertical: 14,
-    borderRadius: 16, minWidth: 120, justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)',
+    borderRadius: 8, minWidth: 120, justifyContent: 'center',
+    backgroundColor: '#fff', borderWidth: 1, borderColor: '#000',
   },
-  pBtnOutlineText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  pBtnOutlineText: { color: '#000', fontSize: 15 },
   pBtnFilled: {
     flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, paddingVertical: 14,
-    borderRadius: 16, minWidth: 120, justifyContent: 'center', backgroundColor: '#16a34a',
+    borderRadius: 8, minWidth: 120, justifyContent: 'center', backgroundColor: '#16a34a', borderWidth: 1
   },
-  pBtnFilledText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  pBtnFilledText: { color: '#fff', fontSize: 15 },
 
   // Text mode
   textModeBtn: {
-    backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 22, padding: 10,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center',
+    backgroundColor: '#fff', borderRadius: 0, padding: 10,
+    borderWidth: 1, borderColor: '#000', alignItems: 'center',
   },
   textModeWrap: { flex: 1, paddingHorizontal: 24, paddingTop: 20 },
   modeToggle: {
     flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, marginBottom: 24,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 6, marginBottom: 24, borderWidth: 1
   },
-  modeToggleText: { fontSize: 13, fontWeight: '600' },
-  textModeTitle: { fontSize: 24, fontWeight: '700', marginBottom: 6 },
+  modeToggleText: { fontSize: 13 },
+  textModeTitle: { fontSize: 24, marginBottom: 6 },
   textModeDesc: { fontSize: 14, lineHeight: 20, marginBottom: 20 },
   textInput: {
-    borderWidth: 1, borderRadius: 14, padding: 16, fontSize: 15, lineHeight: 22,
+    borderWidth: 1, borderRadius: 8, padding: 16, fontSize: 15, lineHeight: 22,
     minHeight: 140, marginBottom: 20,
   },
   textConfirmBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 16, borderRadius: 14,
+    paddingVertical: 16, borderRadius: 8, borderWidth: 1,
   },
-  textConfirmBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  textConfirmBtnText: { color: '#fff', fontSize: 16 },
 });

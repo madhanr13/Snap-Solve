@@ -4,9 +4,10 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
+import { View, StyleSheet, Animated, Easing } from 'react-native';
 import { AppLogo } from './AppLogo';
 import { useTheme } from '../utils/ThemeContext';
+import { ThemedText } from './ThemedText';
 
 const FUN_MESSAGES = [
   'Inspecting the damage...',
@@ -106,9 +107,11 @@ export function LoadingSpinner({ visible, message }: Props) {
     outputRange: ['-20deg', '20deg'],
   });
 
+  // Since Animated.Text can't wrap ThemedText directly with custom props easily, 
+  // we'll just apply the animated style outside.
   return (
     <View style={[s.bg, { backgroundColor: colors.bg + 'F5' }]}>
-      <View style={[s.card, { backgroundColor: colors.surface }]}>
+      <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         {/* Pulsing ring */}
         <View style={s.iconArea}>
           <Animated.View
@@ -137,10 +140,12 @@ export function LoadingSpinner({ visible, message }: Props) {
         </View>
 
         {/* Rotating message */}
-        <Animated.Text style={[s.msg, { color: colors.text, opacity: msgFade }]}>
-          {message || FUN_MESSAGES[msgIndex]}
-        </Animated.Text>
-        <Text style={[s.hint, { color: colors.textMuted }]}>This usually takes a few seconds</Text>
+        <Animated.View style={{ opacity: msgFade }}>
+          <ThemedText weight="semibold" style={s.msg}>
+            {message || FUN_MESSAGES[msgIndex]}
+          </ThemedText>
+        </Animated.View>
+        <ThemedText variant="muted" style={s.hint}>This usually takes a few seconds</ThemedText>
       </View>
     </View>
   );
@@ -152,17 +157,17 @@ const s = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', zIndex: 1000,
   },
   card: {
-    alignItems: 'center', paddingHorizontal: 40, paddingVertical: 36, borderRadius: 20,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 8,
+    alignItems: 'center', paddingHorizontal: 40, paddingVertical: 36, 
+    borderRadius: 8, borderWidth: 1, // Flat design, no shadows
   },
   iconArea: { justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
   pulseRing: {
     position: 'absolute', width: 64, height: 64, borderRadius: 32,
-    borderWidth: 2,
+    borderWidth: 1, // thinner pulse ring
   },
   iconCircle: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center' },
   dotsRow: { flexDirection: 'row', gap: 6, marginBottom: 16 },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  msg: { fontSize: 16, fontWeight: '600', textAlign: 'center' },
+  msg: { fontSize: 16, textAlign: 'center' },
   hint: { fontSize: 12, marginTop: 6 },
 });
