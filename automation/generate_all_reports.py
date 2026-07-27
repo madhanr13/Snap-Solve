@@ -41,7 +41,7 @@ EXECUTION_TIMESTAMP = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 # ==============================================================================
 
 def generate_selenium_tests():
-    \"\"\"Generates 300 unique test cases\"\"\"
+    """Generates 300 unique test cases"""
     modules = [
         ("Authentication & Sign-in", 30),
         ("Authorization & Role Control", 30),
@@ -97,7 +97,7 @@ def generate_selenium_tests():
 
 
 def generate_appium_tests():
-    \"\"\"Generates 300 unique test cases\"\"\"
+    """Generates 300 unique test cases"""
     modules = [
         ("Mobile Camera View Unit Tests", 35),
         ("Material Scan & Compression Unit", 30),
@@ -143,7 +143,7 @@ def generate_appium_tests():
 
 
 def generate_vulnerability_tests():
-    \"\"\"Generates 300 unique test cases\"\"\"
+    """Generates 300 unique test cases"""
     modules = [
         ("OWASP A01: Broken Access Control", 30),
         ("OWASP A02: Cryptographic Failures", 30),
@@ -189,7 +189,7 @@ def generate_vulnerability_tests():
 
 
 def generate_load_tests():
-    \"\"\"Generates 300 unique test cases\"\"\"
+    """Generates 300 unique test cases"""
     modules = [
         ("API Latency (<200ms Benchmark)", 40),
         ("High Concurrency Users (500-2000 VU)", 35),
