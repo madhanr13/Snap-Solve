@@ -30,7 +30,7 @@ import { ThemedText } from '../../components/ThemedText';
 
 export default function InventoryScreen() {
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const isFocused = useIsFocused(); // ← Camera fix
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
@@ -44,7 +44,7 @@ export default function InventoryScreen() {
   useEffect(() => {
     const a = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.06, duration: 1500, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1.05, duration: 1500, useNativeDriver: true }),
         Animated.timing(pulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
       ])
     );
@@ -68,7 +68,7 @@ export default function InventoryScreen() {
       <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
         <View style={styles.permBox}>
           <View style={[styles.permIcon, { backgroundColor: colors.surfaceAlt }]}>
-            <CameraIcon size={36} color={colors.textMuted} strokeWidth={1.5} />
+            <CameraIcon size={36} color={colors.accent} strokeWidth={1.5} />
           </View>
           <ThemedText weight="bold" style={styles.permTitle}>Camera access needed</ThemedText>
           <ThemedText variant="secondary" style={styles.permDesc}>
@@ -146,7 +146,7 @@ export default function InventoryScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: '#05070B' }]}>
       <LoadingSpinner visible={isLoading} message="Figuring out your fix..." />
 
       {isFocused ? (
@@ -155,7 +155,7 @@ export default function InventoryScreen() {
           <View style={styles.overlay}>
             <View style={styles.topRow}>
               <View style={styles.instrBlock}>
-                <View style={styles.pillBadge}>
+                <View style={[styles.pillBadge, { backgroundColor: colors.accent }]}>
                   <ThemedText weight="bold" style={styles.instrHint}>STEP 2</ThemedText>
                 </View>
                 <ThemedText weight="bold" style={styles.instrTitle}>What've you got?</ThemedText>
@@ -164,34 +164,36 @@ export default function InventoryScreen() {
                 </ThemedText>
               </View>
               <TouchableOpacity
-                style={[styles.flashBtn, flashEnabled && styles.flashBtnOn]}
+                style={[styles.flashBtn, flashEnabled && { backgroundColor: '#FBBF24' }]}
                 onPress={() => setFlashEnabled(!flashEnabled)}
                 activeOpacity={0.7}
               >
-                {flashEnabled ? <Zap size={18} color="#000" /> : <ZapOff size={18} color="#fff" />}
+                {flashEnabled ? <Zap size={16} color="#000" strokeWidth={2.5} /> : <ZapOff size={16} color="#fff" strokeWidth={2} />}
               </TouchableOpacity>
             </View>
 
             {/* Problem thumbnail reminder */}
             {problemThumb && (
               <View style={styles.thumbWrap}>
-                <Image source={{ uri: problemThumb }} style={styles.thumb} resizeMode="cover" />
-                <View style={styles.thumbLabelBox}>
-                  <ThemedText weight="semibold" style={styles.thumbLabel}>Damage ✓</ThemedText>
+                <View style={styles.thumbContainer}>
+                  <Image source={{ uri: problemThumb }} style={styles.thumb} resizeMode="cover" />
+                  <View style={styles.thumbLabelBox}>
+                    <ThemedText weight="semibold" style={styles.thumbLabel}>Damage ✓</ThemedText>
+                  </View>
                 </View>
               </View>
             )}
 
             <View style={styles.vf}>
-              <View style={[styles.c, styles.cTL]} />
-              <View style={[styles.c, styles.cTR]} />
-              <View style={[styles.c, styles.cBL]} />
-              <View style={[styles.c, styles.cBR]} />
+              <View style={[styles.c, styles.cTL, { borderColor: colors.accent }]} />
+              <View style={[styles.c, styles.cTR, { borderColor: colors.accent }]} />
+              <View style={[styles.c, styles.cBL, { borderColor: colors.accent }]} />
+              <View style={[styles.c, styles.cBR, { borderColor: colors.accent }]} />
             </View>
 
             <View style={styles.bottomRow}>
               <TouchableOpacity style={styles.sideBtn} onPress={() => router.back()} activeOpacity={0.7}>
-                <ArrowLeft size={20} color="#000" strokeWidth={2} />
+                <ArrowLeft size={18} color="#0F172A" strokeWidth={2.5} />
               </TouchableOpacity>
               <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
                 <TouchableOpacity
@@ -204,7 +206,7 @@ export default function InventoryScreen() {
                     {isProcessing || isLoading ? (
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                      <CameraIcon size={26} color="#fff" strokeWidth={2} />
+                      <CameraIcon size={24} color="#fff" strokeWidth={2.5} />
                     )}
                   </View>
                 </TouchableOpacity>
@@ -221,57 +223,62 @@ export default function InventoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  cameraWrap: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1 },
+  cameraWrap: { flex: 1 },
 
   permBox: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   permIcon: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
   permTitle: { fontSize: 20, marginBottom: 10, textAlign: 'center' },
-  permDesc: { fontSize: 14, textAlign: 'center', marginBottom: 28, lineHeight: 21 },
-  permBtn: { paddingHorizontal: 36, paddingVertical: 14, borderRadius: 8, borderWidth: 1 },
+  permDesc: { fontSize: 14, textAlign: 'center', marginBottom: 28, lineHeight: 22 },
+  permBtn: { paddingHorizontal: 36, paddingVertical: 14, borderRadius: 12, borderWidth: 1 },
   permBtnText: { color: '#fff', fontSize: 16 },
 
-  overlay: { flex: 1, justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 36 },
+  overlay: { flex: 1, justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 36 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  instrBlock: { flex: 1, marginRight: 12 },
-  pillBadge: { backgroundColor: '#fbbf24', paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start', marginBottom: 6, borderWidth: 1, borderColor: '#000' },
+  instrBlock: { flex: 1, marginRight: 16 },
+  pillBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, alignSelf: 'flex-start', marginBottom: 8 },
   instrHint: {
-    fontSize: 11, color: '#000', letterSpacing: 1,
+    fontSize: 11, color: '#fff', letterSpacing: 1,
   },
   instrTitle: {
     fontSize: 24, color: '#fff', marginBottom: 4,
-    textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2,
+    textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
   },
   instrSub: {
-    fontSize: 13, color: '#e7e5e4', lineHeight: 19,
-    textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2,
+    fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 19,
+    textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
   },
 
-  flashBtn: { backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 0, padding: 10, borderWidth: 1, borderColor: '#fff' },
-  flashBtnOn: { backgroundColor: '#fbbf24', borderColor: '#000' },
+  flashBtn: { backgroundColor: 'rgba(15,23,42,0.6)', borderRadius: 20, width: 40, height: 40, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
 
-  thumbWrap: { position: 'absolute', top: 80, right: 20, alignItems: 'center', zIndex: 10 },
-  thumb: { width: 52, height: 52, borderRadius: 0, borderWidth: 2, borderColor: '#fff' },
-  thumbLabelBox: { marginTop: 3, backgroundColor: '#000', paddingHorizontal: 4, paddingVertical: 2, borderWidth: 1, borderColor: '#fff' },
+  thumbWrap: { position: 'absolute', top: 86, right: 20, zIndex: 10 },
+  thumbContainer: {
+    alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 3
+  },
+  thumb: { width: 56, height: 56, borderRadius: 8, borderWidth: 2, borderColor: '#fff' },
+  thumbLabelBox: { marginTop: 4, backgroundColor: 'rgba(15,23,42,0.85)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   thumbLabel: { fontSize: 9, color: '#fff' },
 
   vf: { width: '80%', aspectRatio: 3 / 4, alignSelf: 'center' },
-  c: { position: 'absolute', width: 28, height: 28, borderColor: '#fff' },
-  cTL: { top: 0, left: 0, borderTopWidth: 4, borderLeftWidth: 4 },
-  cTR: { top: 0, right: 0, borderTopWidth: 4, borderRightWidth: 4 },
-  cBL: { bottom: 0, left: 0, borderBottomWidth: 4, borderLeftWidth: 4 },
-  cBR: { bottom: 0, right: 0, borderBottomWidth: 4, borderRightWidth: 4 },
+  c: { position: 'absolute', width: 32, height: 32 },
+  cTL: { top: 0, left: 0, borderTopWidth: 4, borderLeftWidth: 4, borderTopLeftRadius: 16 },
+  cTR: { top: 0, right: 0, borderTopWidth: 4, borderRightWidth: 4, borderTopRightRadius: 16 },
+  cBL: { bottom: 0, left: 0, borderBottomWidth: 4, borderLeftWidth: 4, borderBottomLeftRadius: 16 },
+  cBR: { bottom: 0, right: 0, borderBottomWidth: 4, borderRightWidth: 4, borderBottomRightRadius: 16 },
 
-  bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 28 },
+  bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 32 },
   sideBtn: {
     width: 44, height: 44, backgroundColor: '#fff',
-    justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#000', borderRadius: 0,
+    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#fff', borderRadius: 22,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 3
   },
   sideBtnPlaceholder: { width: 44, height: 44 },
   capRing: {
-    width: 72, height: 72, borderRadius: 36, borderWidth: 4,
+    width: 76, height: 76, borderRadius: 38, borderWidth: 4,
     borderColor: '#fff', justifyContent: 'center', alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4
   },
-  capInner: { width: 58, height: 58, borderRadius: 29, backgroundColor: '#1c1917', justifyContent: 'center', alignItems: 'center' },
+  capInner: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#4F46E5', justifyContent: 'center', alignItems: 'center' },
   disabled: { opacity: 0.5 },
 });

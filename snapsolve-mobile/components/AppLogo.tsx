@@ -20,11 +20,15 @@ export interface AppLogoProps {
   strokeWidth?: number;
 }
 
-export function AppLogo({ size = 24, width, height, color = '#000', strokeWidth = 2 }: AppLogoProps) {
+export function AppLogo({ size = 24, width, height, color, strokeWidth = 2 }: AppLogoProps) {
   return (
     <Image 
       source={require('../assets/logo.png')} 
-      style={{ width: width ?? size, height: height ?? size }} 
+      style={{ 
+        width: width ?? size, 
+        height: height ?? size,
+        tintColor: color,
+      }} 
       resizeMode="contain"
     />
   );

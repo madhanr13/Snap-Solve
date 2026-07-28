@@ -17,7 +17,7 @@ import { ThemedText } from '../../components/ThemedText';
 
 export default function ResultsScreen() {
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const [analysis, setAnalysis] = useState<RepairAnalysis | null>(null);
 
   // Reload every time this tab gains focus (so history taps work)
@@ -62,9 +62,9 @@ export default function ResultsScreen() {
       <SafeAreaView style={[s.container, { backgroundColor: colors.bg }]}>
         <View style={s.empty}>
           <View style={[s.emptyIcon, { backgroundColor: colors.surfaceAlt }]}>
-            <Wrench size={40} color={colors.textMuted} strokeWidth={1.5} />
+            <Wrench size={36} color={colors.accent} strokeWidth={1.5} />
           </View>
-          <ThemedText weight="bold" style={s.emptyTitle}>No fix yet</ThemedText>
+          <ThemedText weight="bold" style={[s.emptyTitle, { color: colors.text }]}>No fix yet</ThemedText>
           <ThemedText variant="secondary" style={s.emptyDesc}>
             Snap a photo of the damage and your materials to get a repair guide.
           </ThemedText>
@@ -83,13 +83,13 @@ export default function ResultsScreen() {
   return (
     <SafeAreaView style={[s.container, { backgroundColor: colors.bg }]}>
       <View style={[s.bar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <TouchableOpacity style={[s.barBtn, { borderColor: colors.border }]} onPress={handleShare} activeOpacity={0.7}>
-          <Share2 size={15} color={colors.textSecondary} strokeWidth={2} />
-          <ThemedText weight="semibold" variant="secondary" style={s.barBtnText}>Share</ThemedText>
+        <TouchableOpacity style={[s.barBtn, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]} onPress={handleShare} activeOpacity={0.7}>
+          <Share2 size={14} color={colors.textSecondary} strokeWidth={2.5} />
+          <ThemedText weight="bold" variant="secondary" style={s.barBtnText}>Share</ThemedText>
         </TouchableOpacity>
-        <TouchableOpacity style={[s.barBtn, s.barBtnPrimary]} onPress={handleNew} activeOpacity={0.7}>
-          <RotateCcw size={15} color="#fff" strokeWidth={2} />
-          <ThemedText weight="semibold" style={s.barBtnPrimaryText}>New fix</ThemedText>
+        <TouchableOpacity style={[s.barBtn, { backgroundColor: colors.accent, borderColor: colors.accent }]} onPress={handleNew} activeOpacity={0.7}>
+          <RotateCcw size={14} color="#fff" strokeWidth={2.5} />
+          <ThemedText weight="bold" style={s.barBtnPrimaryText}>New fix</ThemedText>
         </TouchableOpacity>
       </View>
       <ResultsContent analysis={analysis} />
@@ -101,19 +101,18 @@ const s = StyleSheet.create({
   container: { flex: 1 },
   bar: {
     flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 8, gap: 8, borderBottomWidth: 1,
+    paddingHorizontal: 16, paddingVertical: 10, gap: 10, borderBottomWidth: 1,
   },
   barBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1,
+    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1,
   },
   barBtnText: { fontSize: 13 },
-  barBtnPrimary: { backgroundColor: '#1c1917', borderColor: '#1c1917' },
   barBtnPrimaryText: { fontSize: 13, color: '#fff' },
-  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  emptyIcon: { width: 88, height: 88, borderRadius: 44, justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
+  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
+  emptyIcon: { width: 76, height: 76, borderRadius: 38, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
   emptyTitle: { fontSize: 22, marginBottom: 10, textAlign: 'center' },
-  emptyDesc: { fontSize: 14, textAlign: 'center', marginBottom: 32, lineHeight: 21 },
-  emptyBtn: { paddingHorizontal: 40, paddingVertical: 14, borderRadius: 8, borderWidth: 1 },
+  emptyDesc: { fontSize: 14, textAlign: 'center', marginBottom: 32, lineHeight: 21, paddingHorizontal: 20 },
+  emptyBtn: { paddingHorizontal: 36, paddingVertical: 14, borderRadius: 12, borderWidth: 1 },
   emptyBtnText: { color: '#fff', fontSize: 16 },
 });

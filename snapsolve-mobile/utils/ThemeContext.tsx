@@ -1,6 +1,6 @@
 /**
  * Theme system for SnapSolve.
- * Provides light/dark mode with warm stone-based colors.
+ * Provides light/dark mode with premium indigo-violet aesthetics.
  * Persists user preference to AsyncStorage.
  */
 
@@ -9,49 +9,50 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type ThemeMode = 'light' | 'dark';
 
-// Strict Flat Design 2.0 / Neo-brutalism light palette
+// Premium Light Design Palette (Indigo & Slate)
 export const lightColors = {
-  bg: '#F8FAFC',          // slate-50
-  surface: '#FFFFFF',     // white
-  surfaceAlt: '#F1F5F9',  // slate-100
-  text: '#0F172A',        // slate-900
-  textSecondary: '#475569', // slate-600
-  textMuted: '#94A3B8',   // slate-400
-  accent: '#0055FF',      // Electric blue (solid)
-  accentSoft: '#E6EFFF',  // Electric blue 10%
-  border: '#E2E8F0',      // slate-200
-  borderLight: '#F1F5F9', // slate-100
-  danger: '#DC2626',      // red-600
-  dangerSoft: '#FEF2F2',  // red-50
-  success: '#16A34A',     // green-600
-  successSoft: '#DCFCE7', // green-50
-  warning: '#D97706',     // amber-600
-  warningSoft: '#FEF3C7', // amber-50
+  bg: '#F8FAFC',          // Slate 50
+  surface: '#FFFFFF',     // Pure White
+  surfaceAlt: '#F1F5F9',  // Slate 100
+  text: '#0F172A',        // Slate 900
+  textSecondary: '#475569', // Slate 600
+  textMuted: '#64748B',   // Slate 500
+  accent: '#4F46E5',      // Indigo 600
+  accentSoft: '#EEF2FF',  // Indigo 50
+  border: '#E2E8F0',      // Slate 200
+  borderLight: '#F1F5F9', // Slate 100
+  danger: '#EF4444',      // Red 500
+  dangerSoft: '#FEF2F2',  // Red 50
+  success: '#10B981',     // Emerald 500
+  successSoft: '#ECFDF5', // Emerald 50
+  warning: '#F59E0B',     // Amber 500
+  warningSoft: '#FEF3C7', // Amber 50
   tabBar: '#FFFFFF',
   tabBarBorder: '#E2E8F0',
-  overlay: 'rgba(15,23,42,0.1)',
+  overlay: 'rgba(79, 70, 229, 0.08)',
 };
 
+// Premium Dark Design Palette (Deep Navy & Indigo)
 export const darkColors = {
-  bg: '#020617',          // slate-950
-  surface: '#0F172A',     // slate-900
-  surfaceAlt: '#1E293B',  // slate-800
-  text: '#F8FAFC',        // slate-50
-  textSecondary: '#94A3B8', // slate-400
-  textMuted: '#64748B',   // slate-500
-  accent: '#3377FF',      // Brighter electric blue for dark mode
-  accentSoft: '#001A4D',  // Dark blue tint
-  border: '#1E293B',      // slate-800
-  borderLight: '#0F172A', // slate-900
-  danger: '#F87171',      // red-400
-  dangerSoft: '#450A0A',  // red-950
-  success: '#4ADE80',     // green-400
-  successSoft: '#052E16', // green-950
-  warning: '#FBBF24',     // amber-400
-  warningSoft: '#451A03', // amber-950
-  tabBar: '#0F172A',
-  tabBarBorder: '#1E293B',
-  overlay: 'rgba(255,255,255,0.05)',
+  bg: '#0A0D18',          // Midnight Slate
+  surface: '#141926',     // Rich Deep Blue-Grey
+  surfaceAlt: '#1D2436',  // Lighter Deep Blue-Grey
+  text: '#F8FAFC',        // Slate 50
+  textSecondary: '#94A3B8', // Slate 400
+  textMuted: '#64748B',   // Slate 500
+  accent: '#818CF8',      // Light Indigo 400
+  accentSoft: '#1A1E34',  // Deep Indigo tint
+  border: '#202738',      // Slate-Blue Border
+  borderLight: '#141926', // Matching surface
+  danger: '#F87171',      // Red 400
+  dangerSoft: '#3F1A1A',  // Dark Red tint
+  success: '#34D399',     // Emerald 400
+  successSoft: '#12332A', // Dark Emerald tint
+  warning: '#FBBF24',     // Amber 400
+  warningSoft: '#3D2E14', // Dark Amber tint
+  tabBar: '#101420',
+  tabBarBorder: '#1D2436',
+  overlay: 'rgba(129, 140, 248, 0.05)',
 };
 
 export type ThemeColors = typeof lightColors;

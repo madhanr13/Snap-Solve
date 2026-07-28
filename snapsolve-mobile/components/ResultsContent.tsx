@@ -19,9 +19,9 @@ interface Props {
 }
 
 const DIFFICULTY_CONFIG: Record<string, { color: string; darkColor: string; bg: string; darkBg: string }> = {
-  Easy: { color: '#16A34A', darkColor: '#4ADE80', bg: '#DCFCE7', darkBg: '#052E16' },
-  Medium: { color: '#D97706', darkColor: '#FBBF24', bg: '#FEF3C7', darkBg: '#451A03' },
-  Hard: { color: '#DC2626', darkColor: '#F87171', bg: '#FEF2F2', darkBg: '#450A0A' },
+  Easy: { color: '#059669', darkColor: '#34D399', bg: '#ECFDF5', darkBg: '#064E3B' },
+  Medium: { color: '#D97706', darkColor: '#FBBF24', bg: '#FEF3C7', darkBg: '#78350F' },
+  Hard: { color: '#DC2626', darkColor: '#F87171', bg: '#FEF2F2', darkBg: '#7F1D1D' },
 };
 
 export function ResultsContent({ analysis }: Props) {
@@ -64,24 +64,24 @@ export function ResultsContent({ analysis }: Props) {
     <ScrollView style={[s.container, { backgroundColor: colors.bg }]} contentContainerStyle={s.content}>
       {/* Header */}
       <View style={s.header}>
-        <ThemedText weight="bold" style={s.title}>Here's your fix</ThemedText>
+        <ThemedText weight="bold" style={[s.title, { color: colors.text }]}>Here's your fix</ThemedText>
         <ThemedText variant="secondary" style={s.subtitle}>Based on what we saw, here's what to do</ThemedText>
       </View>
 
       {/* Difficulty + Time badges */}
       <View style={s.badgesRow}>
-        <View style={[s.metaBadge, { backgroundColor: diffBg, borderColor: diffColor + '30' }]}>
+        <View style={[s.metaBadge, { backgroundColor: diffBg, borderColor: diffColor + '20' }]}>
           <Gauge size={14} color={diffColor} strokeWidth={2.5} />
           <ThemedText weight="bold" style={[s.metaBadgeText, { color: diffColor }]}>{analysis.difficulty || 'Medium'}</ThemedText>
         </View>
-        <View style={[s.metaBadge, { backgroundColor: colors.accentSoft, borderColor: colors.accent + '30' }]}>
+        <View style={[s.metaBadge, { backgroundColor: colors.accentSoft, borderColor: colors.accent + '20' }]}>
           <Clock size={14} color={colors.accent} strokeWidth={2.5} />
           <ThemedText weight="bold" style={[s.metaBadgeText, { color: colors.accent }]}>{analysis.estimated_time || '~15 min'}</ThemedText>
         </View>
       </View>
 
       {/* What went wrong */}
-      <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: isDark ? '#000' : '#475569' }]}>
         <View style={s.cardRow}>
           <View style={[s.badge, { backgroundColor: colors.accentSoft }]}>
             <Zap size={16} color={colors.accent} strokeWidth={2} />
@@ -92,9 +92,9 @@ export function ResultsContent({ analysis }: Props) {
       </View>
 
       {/* Heads up */}
-      <View style={[s.card, s.warningCard, { backgroundColor: colors.dangerSoft, borderColor: colors.danger }]}>
+      <View style={[s.card, s.warningCard, { backgroundColor: colors.dangerSoft, borderColor: colors.danger, shadowColor: isDark ? '#000' : '#ef4444' }]}>
         <View style={s.cardRow}>
-          <View style={[s.badge, { backgroundColor: isDark ? '#450A0A' : '#FEF2F2' }]}>
+          <View style={[s.badge, { backgroundColor: isDark ? '#3F1A1A' : '#FEF2F2' }]}>
             <AlertTriangle size={16} color={colors.danger} strokeWidth={2} />
           </View>
           <ThemedText weight="semibold" variant="danger" style={s.cardLabel}>Heads up</ThemedText>
@@ -103,7 +103,7 @@ export function ResultsContent({ analysis }: Props) {
       </View>
 
       {/* You'll need */}
-      <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: isDark ? '#000' : '#475569' }]}>
         <View style={s.cardRow}>
           <View style={[s.badge, { backgroundColor: colors.successSoft }]}>
             <ListChecks size={16} color={colors.success} strokeWidth={2} />
@@ -119,9 +119,9 @@ export function ResultsContent({ analysis }: Props) {
       </View>
 
       {/* Interactive Steps */}
-      <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: isDark ? '#000' : '#475569' }]}>
         <View style={s.cardRow}>
-          <View style={[s.badge, { backgroundColor: isDark ? '#1E293B' : '#F1F5F9' }]}>
+          <View style={[s.badge, { backgroundColor: colors.surfaceAlt }]}>
             <Wrench size={16} color={colors.text} strokeWidth={2} />
           </View>
           <ThemedText weight="semibold" style={s.cardLabel}>Here's what to do</ThemedText>
@@ -131,7 +131,7 @@ export function ResultsContent({ analysis }: Props) {
         </View>
 
         {/* Progress bar */}
-        <View style={[s.progressTrack, { backgroundColor: colors.border }]}>
+        <View style={[s.progressTrack, { backgroundColor: colors.borderLight }]}>
           <View
             style={[
               s.progressFill,
@@ -148,13 +148,13 @@ export function ResultsContent({ analysis }: Props) {
             key={i}
             style={s.stepRow}
             onPress={() => toggleStep(i)}
-            activeOpacity={0.6}
+            activeOpacity={0.7}
           >
             <View style={s.stepLeft}>
               {checked[i] ? (
-                <CheckCircle2 size={24} color={colors.success} strokeWidth={2} />
+                <CheckCircle2 size={22} color={colors.success} strokeWidth={2.5} />
               ) : (
-                <Circle size={24} color={colors.textMuted} strokeWidth={1.5} />
+                <Circle size={22} color={colors.textMuted} strokeWidth={2} />
               )}
               {i < analysis.steps.length - 1 && (
                 <View style={[s.stepLine, { backgroundColor: checked[i] ? colors.success + '40' : colors.border }]} />
@@ -186,7 +186,9 @@ export function ResultsContent({ analysis }: Props) {
             },
           ]}
         >
-          <PartyPopper size={28} color={colors.success} strokeWidth={2} />
+          <View style={[s.celebrationIconWrap, { backgroundColor: colors.success + '15' }]}>
+            <PartyPopper size={28} color={colors.success} strokeWidth={2} />
+          </View>
           <View style={s.celebrationText}>
             <ThemedText weight="bold" variant="success" style={s.celebrationTitle}>All done! 🎉</ThemedText>
             <ThemedText variant="success" style={s.celebrationDesc}>
@@ -203,48 +205,55 @@ export function ResultsContent({ analysis }: Props) {
 
 const s = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 16 },
-  header: { marginBottom: 12, marginTop: 4 },
+  content: { padding: 20 },
+  header: { marginBottom: 16, marginTop: 4 },
   title: { fontSize: 24, letterSpacing: -0.5 },
   subtitle: { fontSize: 14, marginTop: 4 },
 
   // Difficulty + time badges
-  badgesRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  badgesRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
   metaBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 6, borderWidth: 1,
+    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 99, borderWidth: 1,
   },
   metaBadgeText: { fontSize: 13 },
 
-  badge: { width: 30, height: 30, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
+  badge: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
 
-  card: { borderRadius: 8, padding: 16, marginBottom: 10, borderWidth: 1 },
-  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  cardLabel: { fontSize: 14, flex: 1 },
-  cardBody: { fontSize: 14, lineHeight: 21 },
-  warningCard: { borderLeftWidth: 4 },
+  card: { 
+    borderRadius: 16, padding: 20, marginBottom: 16, borderWidth: 1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  cardLabel: { fontSize: 15, flex: 1 },
+  cardBody: { fontSize: 14, lineHeight: 22 },
+  warningCard: { borderLeftWidth: 5 },
 
-  matRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
-  matDot: { width: 6, height: 6, borderRadius: 0, marginRight: 10 }, // square dot for brutalism
+  matRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7 },
+  matDot: { width: 6, height: 6, borderRadius: 3, marginRight: 12 },
   matText: { fontSize: 14, flex: 1 },
 
   // Progress
   progressLabel: { fontSize: 12 },
-  progressTrack: { height: 4, borderRadius: 0, marginBottom: 14, overflow: 'hidden' }, // sharp progress
-  progressFill: { height: '100%' },
+  progressTrack: { height: 6, borderRadius: 3, marginBottom: 20, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 3 },
 
   // Interactive steps
   stepRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 2 },
-  stepLeft: { alignItems: 'center', marginRight: 12 },
-  stepLine: { width: 2, height: 16, marginVertical: 3 },
-  stepText: { fontSize: 14, lineHeight: 21, flex: 1, paddingTop: 2, paddingBottom: 14 },
+  stepLeft: { alignItems: 'center', marginRight: 14 },
+  stepLine: { width: 2, height: 20, marginVertical: 4 },
+  stepText: { fontSize: 14, lineHeight: 22, flex: 1, paddingTop: 1, paddingBottom: 16 },
   stepTextDone: { textDecorationLine: 'line-through' },
 
   // Celebration
   celebrationCard: {
-    flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 8,
-    borderWidth: 1, marginBottom: 10, gap: 14,
+    flexDirection: 'row', alignItems: 'center', padding: 20, borderRadius: 16,
+    borderWidth: 1, marginBottom: 16, gap: 16,
   },
+  celebrationIconWrap: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
   celebrationText: { flex: 1 },
   celebrationTitle: { fontSize: 16, marginBottom: 2 },
   celebrationDesc: { fontSize: 13, lineHeight: 18 },

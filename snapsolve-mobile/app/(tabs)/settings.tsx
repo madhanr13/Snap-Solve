@@ -96,9 +96,9 @@ export default function SettingsScreen() {
   };
 
   const getModelIcon = (tag: string) => {
-    if (tag === 'Fastest') return <Zap size={15} color="#d97706" strokeWidth={2} />;
-    if (tag === 'Recommended') return <Award size={15} color={colors.accent} strokeWidth={2} />;
-    if (tag === 'Best quality') return <Award size={15} color="#7c3aed" strokeWidth={2} />;
+    if (tag === 'Fastest') return <Zap size={14} color="#D97706" strokeWidth={2.5} />;
+    if (tag === 'Recommended') return <Award size={14} color={colors.accent} strokeWidth={2.5} />;
+    if (tag === 'Best quality') return <Award size={14} color="#8B5CF6" strokeWidth={2.5} />;
     return null;
   };
 
@@ -107,8 +107,8 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
 
         {/* ── AI Model ── */}
-        <ThemedText weight="bold" variant="secondary" style={s.sectionLabel}>AI MODEL</ThemedText>
-        <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <ThemedText weight="bold" variant="muted" style={s.sectionLabel}>AI MODEL</ThemedText>
+        <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: isDark ? '#000' : '#475569' }]}>
           {AVAILABLE_MODELS.map((m, idx) => {
             const isSelected = selectedModel === m.id;
             const isLast = idx === AVAILABLE_MODELS.length - 1;
@@ -120,20 +120,20 @@ export default function SettingsScreen() {
                   !isLast && { borderBottomWidth: 1, borderBottomColor: colors.borderLight },
                 ]}
                 onPress={() => handleModelChange(m.id)}
-                activeOpacity={0.6}
+                activeOpacity={0.7}
               >
                 <View style={s.modelLeft}>
                   <View style={[s.radio, { borderColor: isSelected ? colors.accent : colors.textMuted }]}>
                     {isSelected && <View style={[s.radioInner, { backgroundColor: colors.accent }]} />}
                   </View>
                   <View>
-                    <ThemedText weight="medium" style={s.modelName}>{m.name}</ThemedText>
+                    <ThemedText weight="bold" style={[s.modelName, { color: colors.text }]}>{m.name}</ThemedText>
                     {m.tag ? (
                       <View style={s.tagRow}>
                         {getModelIcon(m.tag)}
-                        <ThemedText weight="semibold" style={[s.modelTag, {
-                          color: m.tag === 'Fastest' ? '#d97706'
-                            : m.tag === 'Best quality' ? '#7c3aed'
+                        <ThemedText weight="bold" style={[s.modelTag, {
+                          color: m.tag === 'Fastest' ? '#D97706'
+                            : m.tag === 'Best quality' ? '#8B5CF6'
                             : colors.accent,
                         }]}>
                           {m.tag}
@@ -149,61 +149,61 @@ export default function SettingsScreen() {
         </View>
 
         {/* ── Appearance ── */}
-        <ThemedText weight="bold" variant="secondary" style={s.sectionLabel}>APPEARANCE</ThemedText>
-        <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <ThemedText weight="bold" variant="muted" style={s.sectionLabel}>APPEARANCE</ThemedText>
+        <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: isDark ? '#000' : '#475569' }]}>
           <View style={s.row}>
             <View style={s.rowLeft}>
               {isDark ? (
-                <Moon size={20} color={colors.accent} strokeWidth={2} />
+                <Moon size={18} color={colors.accent} strokeWidth={2.5} />
               ) : (
-                <Sun size={20} color="#d97706" strokeWidth={2} />
+                <Sun size={18} color="#D97706" strokeWidth={2.5} />
               )}
-              <ThemedText weight="medium" style={s.rowText}>Dark Mode</ThemedText>
+              <ThemedText weight="bold" style={[s.rowText, { color: colors.text }]}>Dark Mode</ThemedText>
             </View>
             <Switch
               value={isDark}
               onValueChange={toggle}
-              trackColor={{ false: '#d6d3d1', true: colors.accent }}
+              trackColor={{ false: '#D1D5DB', true: colors.accent }}
               thumbColor="#fff"
             />
           </View>
         </View>
 
         {/* ── Data ── */}
-        <ThemedText weight="bold" variant="secondary" style={s.sectionLabel}>DATA</ThemedText>
-        <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <TouchableOpacity style={s.row} onPress={handleClearHistory} activeOpacity={0.6}>
+        <ThemedText weight="bold" variant="muted" style={s.sectionLabel}>DATA</ThemedText>
+        <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: isDark ? '#000' : '#475569' }]}>
+          <TouchableOpacity style={s.row} onPress={handleClearHistory} activeOpacity={0.7}>
             <View style={s.rowLeft}>
-              <Trash2 size={20} color={colors.danger} strokeWidth={2} />
-              <ThemedText weight="medium" style={[s.rowText, { color: colors.danger }]}>Clear History</ThemedText>
+              <Trash2 size={18} color={colors.danger} strokeWidth={2} />
+              <ThemedText weight="bold" style={[s.rowText, { color: colors.danger }]}>Clear History</ThemedText>
             </View>
           </TouchableOpacity>
         </View>
 
         {/* ── My Toolbox ── */}
-        <ThemedText weight="bold" variant="secondary" style={s.sectionLabel}>MY TOOLBOX</ThemedText>
-        <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <ThemedText weight="bold" variant="muted" style={s.sectionLabel}>MY TOOLBOX</ThemedText>
+        <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: isDark ? '#000' : '#475569' }]}>
           <View style={[s.row, { borderBottomWidth: hasToolbox ? 1 : 0, borderBottomColor: colors.borderLight }]}>
             <View style={s.rowLeft}>
-              <Package size={20} color={colors.accent} strokeWidth={2} />
+              <Package size={18} color={colors.accent} strokeWidth={2} />
               <View>
-                <ThemedText weight="medium" style={s.rowText}>Saved Materials</ThemedText>
+                <ThemedText weight="bold" style={[s.rowText, { color: colors.text }]}>Saved Materials</ThemedText>
                 <ThemedText style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
                   {hasToolbox ? 'Toolbox photo saved ✓' : 'No toolbox saved yet'}
                 </ThemedText>
               </View>
             </View>
             {hasToolbox && (
-              <View style={[s.toolboxBadge, { backgroundColor: isDark ? '#052e16' : '#f0fdf4', borderColor: colors.success }]}>
+              <View style={[s.toolboxBadge, { backgroundColor: colors.successSoft, borderColor: colors.success + '20' }]}>
                 <ThemedText weight="bold" style={{ fontSize: 11, color: colors.success }}>SAVED</ThemedText>
               </View>
             )}
           </View>
           {hasToolbox && (
-            <TouchableOpacity style={s.row} onPress={handleClearToolbox} activeOpacity={0.6}>
+            <TouchableOpacity style={s.row} onPress={handleClearToolbox} activeOpacity={0.7}>
               <View style={s.rowLeft}>
-                <Trash2 size={20} color={colors.danger} strokeWidth={2} />
-                <ThemedText weight="medium" style={[s.rowText, { color: colors.danger }]}>Remove Toolbox</ThemedText>
+                <Trash2 size={18} color={colors.danger} strokeWidth={2} />
+                <ThemedText weight="bold" style={[s.rowText, { color: colors.danger }]}>Remove Toolbox</ThemedText>
               </View>
             </TouchableOpacity>
           )}
@@ -217,28 +217,28 @@ export default function SettingsScreen() {
         </View>
 
         {/* ── About ── */}
-        <ThemedText weight="bold" variant="secondary" style={s.sectionLabel}>ABOUT</ThemedText>
-        <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <ThemedText weight="bold" variant="muted" style={s.sectionLabel}>ABOUT</ThemedText>
+        <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: isDark ? '#000' : '#475569' }]}>
           <View style={[s.row, { borderBottomWidth: 1, borderBottomColor: colors.borderLight }]}>
             <View style={s.rowLeft}>
-              <Info size={20} color={colors.textSecondary} strokeWidth={2} />
-              <ThemedText weight="medium" style={s.rowText}>Version</ThemedText>
+              <Info size={18} color={colors.textSecondary} strokeWidth={2} />
+              <ThemedText weight="bold" style={[s.rowText, { color: colors.text }]}>Version</ThemedText>
             </View>
             <ThemedText variant="secondary" style={s.rowValue}>1.0.0</ThemedText>
           </View>
           <View style={s.row}>
             <View style={s.rowLeft}>
-              <Cpu size={20} color={colors.textSecondary} strokeWidth={2} />
-              <ThemedText weight="medium" style={s.rowText}>Engine</ThemedText>
+              <Cpu size={18} color={colors.textSecondary} strokeWidth={2} />
+              <ThemedText weight="bold" style={[s.rowText, { color: colors.text }]}>Engine</ThemedText>
             </View>
             <ThemedText variant="secondary" style={s.rowValue}>Google Gemini</ThemedText>
           </View>
         </View>
 
         {/* ── Tips ── */}
-        <ThemedText weight="bold" variant="secondary" style={s.sectionLabel}>TIPS FOR BETTER RESULTS</ThemedText>
-        <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <ThemedText variant="secondary" style={s.tipsText}>
+        <ThemedText weight="bold" variant="muted" style={s.sectionLabel}>TIPS FOR BETTER RESULTS</ThemedText>
+        <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: isDark ? '#000' : '#475569' }]}>
+          <ThemedText variant="secondary" style={[s.tipsText, { color: colors.textSecondary }]}>
             {`• Use natural lighting — avoid harsh shadows\n`}
             {`• Capture the full damaged area, don't crop tight\n`}
             {`• Lay all materials flat on a clean surface\n`}
@@ -248,21 +248,21 @@ export default function SettingsScreen() {
         </View>
 
         {/* ── Account ── */}
-        <ThemedText weight="bold" variant="secondary" style={s.sectionLabel}>ACCOUNT</ThemedText>
-        <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <ThemedText weight="bold" variant="muted" style={s.sectionLabel}>ACCOUNT</ThemedText>
+        <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: isDark ? '#000' : '#475569' }]}>
           <View style={[s.row, { borderBottomWidth: 1, borderBottomColor: colors.borderLight }]}>
             <View style={s.rowLeft}>
-              <User size={20} color={colors.accent} strokeWidth={2} />
-              <ThemedText weight="medium" style={s.rowText}>Signed in as</ThemedText>
+              <User size={18} color={colors.accent} strokeWidth={2} />
+              <ThemedText weight="bold" style={[s.rowText, { color: colors.text }]}>Signed in as</ThemedText>
             </View>
             <ThemedText weight="bold" style={[s.rowValue, { color: colors.accent }]}>
               {user?.display_name || user?.username || 'Unknown'}
             </ThemedText>
           </View>
-          <TouchableOpacity style={s.row} onPress={handleLogout} activeOpacity={0.6}>
+          <TouchableOpacity style={s.row} onPress={handleLogout} activeOpacity={0.7}>
             <View style={s.rowLeft}>
-              <LogOut size={20} color={colors.danger} strokeWidth={2} />
-              <ThemedText weight="medium" style={[s.rowText, { color: colors.danger }]}>Sign Out</ThemedText>
+              <LogOut size={18} color={colors.danger} strokeWidth={2} />
+              <ThemedText weight="bold" style={[s.rowText, { color: colors.danger }]}>Sign Out</ThemedText>
             </View>
           </TouchableOpacity>
         </View>
@@ -276,20 +276,23 @@ export default function SettingsScreen() {
 const s = StyleSheet.create({
   container: { flex: 1 },
   scroll: { padding: 20, paddingTop: 8 },
-  sectionLabel: { fontSize: 11, letterSpacing: 1.2, marginBottom: 10, marginTop: 16 },
-  card: { borderRadius: 8, borderWidth: 1, marginBottom: 4, overflow: 'hidden' },
+  sectionLabel: { fontSize: 11, letterSpacing: 1.2, marginBottom: 10, marginTop: 18 },
+  card: { 
+    borderRadius: 16, borderWidth: 1, marginBottom: 4, overflow: 'hidden',
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.02, shadowRadius: 8, elevation: 1
+  },
   row: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 14,
+    paddingHorizontal: 18, paddingVertical: 15,
   },
-  rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   rowText: { fontSize: 15 },
   rowValue: { fontSize: 14 },
 
   // Model rows
   modelRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 14,
+    paddingHorizontal: 18, paddingVertical: 15,
   },
   modelLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
@@ -298,8 +301,8 @@ const s = StyleSheet.create({
   tagRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   modelTag: { fontSize: 11 },
 
-  tipsText: { fontSize: 13, lineHeight: 22, padding: 16 },
+  tipsText: { fontSize: 13, lineHeight: 22, padding: 18 },
 
   // Toolbox
-  toolboxBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, borderWidth: 1 },
+  toolboxBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, borderWidth: 1 },
 });

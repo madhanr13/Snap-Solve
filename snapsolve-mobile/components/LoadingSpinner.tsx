@@ -1,10 +1,10 @@
 /**
- * Loading Spinner — fun rotating messages + wrench animation.
- * Feature 3: Makes the wait feel shorter with personality.
+ * Loading Spinner — rotating messages, pulsing ring, and smooth animations.
+ * Provides personality during the AI analysis wait time.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, Animated, Easing } from 'react-native';
+import { View, StyleSheet, Animated, Easing, ActivityIndicator } from 'react-native';
 import { AppLogo } from './AppLogo';
 import { useTheme } from '../utils/ThemeContext';
 import { ThemedText } from './ThemedText';
@@ -28,7 +28,7 @@ interface Props {
 }
 
 export function LoadingSpinner({ visible, message }: Props) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const [msgIndex, setMsgIndex] = useState(0);
 
   // Wrench rotation
@@ -43,7 +43,7 @@ export function LoadingSpinner({ visible, message }: Props) {
   const msgFade = useRef(new Animated.Value(1)).current;
   // Pulse ring
   const pulseScale = useRef(new Animated.Value(1)).current;
-  const pulseOpacity = useRef(new Animated.Value(0.4)).current;
+  const pulseOpacity = useRef(new Animated.Value(0.5)).current;
 
   useEffect(() => {
     if (!visible) return;
@@ -51,8 +51,8 @@ export function LoadingSpinner({ visible, message }: Props) {
     // Wrench rotation animation
     const rotate = Animated.loop(
       Animated.sequence([
-        Animated.timing(rotateAnim, { toValue: 1, duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(rotateAnim, { toValue: 0, duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(rotateAnim, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(rotateAnim, { toValue: 0, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
       ])
     );
     rotate.start();
@@ -61,9 +61,9 @@ export function LoadingSpinner({ visible, message }: Props) {
     const dotAnims = dots.map((d, i) =>
       Animated.loop(
         Animated.sequence([
-          Animated.delay(i * 150),
-          Animated.timing(d, { toValue: -10, duration: 350, useNativeDriver: true }),
-          Animated.timing(d, { toValue: 0, duration: 350, useNativeDriver: true }),
+          Animated.delay(i * 120),
+          Animated.timing(d, { toValue: -8, duration: 300, useNativeDriver: true }),
+          Animated.timing(d, { toValue: 0, duration: 300, useNativeDriver: true }),
         ])
       )
     );
@@ -73,12 +73,12 @@ export function LoadingSpinner({ visible, message }: Props) {
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.parallel([
-          Animated.timing(pulseScale, { toValue: 1.5, duration: 1200, useNativeDriver: true }),
-          Animated.timing(pulseOpacity, { toValue: 0, duration: 1200, useNativeDriver: true }),
+          Animated.timing(pulseScale, { toValue: 1.6, duration: 1500, useNativeDriver: true }),
+          Animated.timing(pulseOpacity, { toValue: 0, duration: 1500, useNativeDriver: true }),
         ]),
         Animated.parallel([
           Animated.timing(pulseScale, { toValue: 1, duration: 0, useNativeDriver: true }),
-          Animated.timing(pulseOpacity, { toValue: 0.4, duration: 0, useNativeDriver: true }),
+          Animated.timing(pulseOpacity, { toValue: 0.5, duration: 0, useNativeDriver: true }),
         ]),
       ])
     );
@@ -86,11 +86,11 @@ export function LoadingSpinner({ visible, message }: Props) {
 
     // Cycle messages
     const interval = setInterval(() => {
-      Animated.timing(msgFade, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+      Animated.timing(msgFade, { toValue: 0, duration: 250, useNativeDriver: true }).start(() => {
         setMsgIndex((prev) => (prev + 1) % FUN_MESSAGES.length);
-        Animated.timing(msgFade, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+        Animated.timing(msgFade, { toValue: 1, duration: 350, useNativeDriver: true }).start();
       });
-    }, 2500);
+    }, 2800);
 
     return () => {
       rotate.stop();
@@ -104,14 +104,12 @@ export function LoadingSpinner({ visible, message }: Props) {
 
   const spin = rotateAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['-20deg', '20deg'],
+    outputRange: ['-30deg', '30deg'],
   });
 
-  // Since Animated.Text can't wrap ThemedText directly with custom props easily, 
-  // we'll just apply the animated style outside.
   return (
-    <View style={[s.bg, { backgroundColor: colors.bg + 'F5' }]}>
-      <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[s.bg, { backgroundColor: isDark ? 'rgba(10,13,24,0.92)' : 'rgba(248,250,252,0.92)' }]}>
+      <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: isDark ? '#000' : '#4f46e5' }]}>
         {/* Pulsing ring */}
         <View style={s.iconArea}>
           <Animated.View
@@ -125,7 +123,7 @@ export function LoadingSpinner({ visible, message }: Props) {
             ]}
           />
           <Animated.View style={[s.iconCircle, { backgroundColor: colors.surfaceAlt, transform: [{ rotate: spin }] }]}>
-            <AppLogo size={28} color={colors.accent} strokeWidth={2} />
+            <AppLogo size={32} color={colors.accent} strokeWidth={2.5} />
           </Animated.View>
         </View>
 
@@ -140,12 +138,12 @@ export function LoadingSpinner({ visible, message }: Props) {
         </View>
 
         {/* Rotating message */}
-        <Animated.View style={{ opacity: msgFade }}>
-          <ThemedText weight="semibold" style={s.msg}>
+        <Animated.View style={{ opacity: msgFade, minHeight: 28, justifyContent: 'center' }}>
+          <ThemedText weight="semibold" style={[s.msg, { color: colors.text }]}>
             {message || FUN_MESSAGES[msgIndex]}
           </ThemedText>
         </Animated.View>
-        <ThemedText variant="muted" style={s.hint}>This usually takes a few seconds</ThemedText>
+        <ThemedText variant="muted" style={s.hint}>This will take just a moment</ThemedText>
       </View>
     </View>
   );
@@ -157,17 +155,23 @@ const s = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', zIndex: 1000,
   },
   card: {
-    alignItems: 'center', paddingHorizontal: 40, paddingVertical: 36, 
-    borderRadius: 8, borderWidth: 1, // Flat design, no shadows
+    alignItems: 'center', paddingHorizontal: 36, paddingVertical: 40, 
+    borderRadius: 16, borderWidth: 1,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    elevation: 8,
+    width: '80%',
+    maxWidth: 320,
   },
-  iconArea: { justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  iconArea: { justifyContent: 'center', alignItems: 'center', marginBottom: 28 },
   pulseRing: {
-    position: 'absolute', width: 64, height: 64, borderRadius: 32,
-    borderWidth: 1, // thinner pulse ring
+    position: 'absolute', width: 72, height: 72, borderRadius: 36,
+    borderWidth: 2,
   },
-  iconCircle: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center' },
-  dotsRow: { flexDirection: 'row', gap: 6, marginBottom: 16 },
+  iconCircle: { width: 72, height: 72, borderRadius: 36, justifyContent: 'center', alignItems: 'center' },
+  dotsRow: { flexDirection: 'row', gap: 6, marginBottom: 20 },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  msg: { fontSize: 16, textAlign: 'center' },
-  hint: { fontSize: 12, marginTop: 6 },
+  msg: { fontSize: 16, textAlign: 'center', paddingHorizontal: 10 },
+  hint: { fontSize: 12, marginTop: 8, opacity: 0.7 },
 });
