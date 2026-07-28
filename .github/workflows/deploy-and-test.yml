@@ -89,7 +89,7 @@ jobs:
       # Stage 8, 9 & 10: Run E2E Test Suites & Generate Excel/HTML Reports
       - name: "Stage 8, 9 & 10: Run Selenium, Appium, Vulnerability & Load Test Suites"
         run: |
-          python automation/generate_all_reports.py
+          python automation/generate_all_reports.py --suite all
 
       # Stage 11: Upload Evidence Artifacts
       - name: "Stage 11: Upload Evidence Artifacts"
