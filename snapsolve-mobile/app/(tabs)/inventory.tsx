@@ -36,6 +36,7 @@ export default function InventoryScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [streamingText, setStreamingText] = useState('');
   const [flashEnabled, setFlashEnabled] = useState(false);
   const [problemThumb, setProblemThumb] = useState<string | null>(null);
 
@@ -104,50 +105,73 @@ export default function InventoryScreen() {
       }
 
       setIsLoading(true);
-      let analysis;
-      if (problemText) {
-        // Text-only mode
-        analysis = await api.analyzeRepairText(problemText, compressed.base64);
-      } else {
-        // Camera mode
-        analysis = await api.analyzeRepair(problemBase64!, compressed.base64);
-      }
-      await AsyncStorage.setItem('repairAnalysis', JSON.stringify(analysis));
-      // Save to history for the home screen
-      await saveToHistory(analysis);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setStreamingText('');
 
-      // Offer to save materials as toolbox
-      const existingToolbox = await getToolbox();
-      if (!existingToolbox) {
-        Alert.alert(
-          'Save as your toolbox?',
-          'Save this materials photo so you can skip this step next time.',
-          [
-            { text: 'No thanks', style: 'cancel', onPress: () => router.push('/(tabs)/results') },
-            {
-              text: 'Save it',
-              onPress: async () => {
-                await saveToolbox(compressed.base64);
-                router.push('/(tabs)/results');
-              },
-            },
-          ]
-        );
+      // Shared callbacks for SSE streaming
+      const onToken = (token: string) => {
+        setStreamingText((prev) => prev + token);
+      };
+
+      const onDone = async (analysis: any) => {
+        try {
+          await AsyncStorage.setItem('repairAnalysis', JSON.stringify(analysis));
+          await saveToHistory(analysis);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+          // Offer to save materials as toolbox
+          const existingToolbox = await getToolbox();
+          if (!existingToolbox) {
+            Alert.alert(
+              'Save as your toolbox?',
+              'Save this materials photo so you can skip this step next time.',
+              [
+                { text: 'No thanks', style: 'cancel', onPress: () => router.push('/(tabs)/results') },
+                {
+                  text: 'Save it',
+                  onPress: async () => {
+                    await saveToolbox(compressed.base64);
+                    router.push('/(tabs)/results');
+                  },
+                },
+              ]
+            );
+          } else {
+            router.push('/(tabs)/results');
+          }
+        } catch (err) {
+          Alert.alert('Error', err instanceof Error ? err.message : 'Failed to save analysis');
+        } finally {
+          setIsProcessing(false);
+          setIsLoading(false);
+          setStreamingText('');
+        }
+      };
+
+      const onError = (msg: string) => {
+        Alert.alert('Hmm, something went wrong', msg);
+        setIsProcessing(false);
+        setIsLoading(false);
+        setStreamingText('');
+      };
+
+      if (problemText) {
+        // Text-only mode — streaming
+        await api.analyzeRepairTextStream(problemText, compressed.base64, onToken, onDone, onError);
       } else {
-        router.push('/(tabs)/results');
+        // Camera mode — streaming
+        await api.analyzeRepairStream(problemBase64!, compressed.base64, onToken, onDone, onError);
       }
     } catch (error) {
       Alert.alert('Hmm, something went wrong', error instanceof Error ? error.message : 'Analysis failed');
-    } finally {
       setIsProcessing(false);
       setIsLoading(false);
+      setStreamingText('');
     }
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: '#05070B' }]}>
-      <LoadingSpinner visible={isLoading} message="Figuring out your fix..." />
+      <LoadingSpinner visible={isLoading} message="Figuring out your fix..." streamingText={streamingText} />
 
       {isFocused ? (
         <View style={styles.cameraWrap}>

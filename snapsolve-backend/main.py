@@ -1,18 +1,20 @@
 """
 SnapSolve Backend - FastAPI server for AI-powered repair analysis.
-Accepts two base64-encoded images and uses Google Gemini
-to generate a safe temporary repair guide using only available materials.
+Accepts two base64-encoded images and uses a local Ollama instance
+running Qwen 2.5 VL to generate a safe temporary repair guide
+using only available materials.
 """
 
 import json
 import os
-import time
+import base64
 from typing import Optional
 
-import google.generativeai as genai
+import ollama
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from auth import (
@@ -43,12 +45,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure Google Gemini API
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if not GEMINI_API_KEY:
-    raise ValueError("GEMINI_API_KEY not set in .env file")
+# Configure Ollama connection
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_MODEL = "qwen2.5vl:3b"
 
-genai.configure(api_key=GEMINI_API_KEY)
+# Initialize the Ollama client pointing at the configured host
+ollama_client = ollama.Client(host=OLLAMA_BASE_URL)
 
 
 # Pydantic model for request validation
@@ -56,7 +58,7 @@ class AnalyzeRepairRequest(BaseModel):
     """Request payload containing two base64-encoded images."""
     image_problem: str  # Base64 string of broken object
     image_inventory: str  # Base64 string of available materials
-    preferred_model: Optional[str] = None  # Optional model override from frontend
+    preferred_model: Optional[str] = None  # Kept for API compatibility (ignored)
 
 
 # Pydantic model for response validation
@@ -85,6 +87,95 @@ You MUST return your response entirely in valid JSON format without markdown cod
     "Step 2 instructions"
   ]
 }"""
+
+
+def _call_ollama(prompt: str, images: list[str]) -> dict:
+    """
+    Call the local Ollama instance with prompt text and base64-encoded images.
+
+    Args:
+        prompt: The text prompt/instructions for the model.
+        images: List of base64-encoded image strings.
+
+    Returns:
+        Parsed JSON dict from the model response.
+
+    Raises:
+        HTTPException: If Ollama is unreachable or the response is invalid JSON.
+    """
+    try:
+        response = ollama_client.chat(
+            model=OLLAMA_MODEL,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                    "images": images,
+                }
+            ],
+            keep_alive=-1,
+        )
+    except Exception as e:
+        error_str = str(e)
+        # Check for connection-related errors indicating Ollama is not running
+        if any(keyword in error_str.lower() for keyword in [
+            "connect", "refused", "unreachable", "timeout",
+            "connection", "httpx", "could not", "failed to"
+        ]):
+            raise HTTPException(
+                status_code=500,
+                detail="Ollama service is not running or unreachable. "
+                       "Please ensure Ollama is running on your server "
+                       f"at {OLLAMA_BASE_URL}."
+            )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error communicating with Ollama: {error_str}"
+        )
+
+    # Extract response text
+    response_text = response["message"]["content"].strip()
+
+    # Remove markdown code blocks if present (defensive parsing)
+    if response_text.startswith("```json"):
+        response_text = response_text[7:]
+    if response_text.startswith("```"):
+        response_text = response_text[3:]
+    if response_text.endswith("```"):
+        response_text = response_text[:-3]
+
+    response_text = response_text.strip()
+
+    # Parse the JSON response
+    try:
+        parsed_response = json.loads(response_text)
+    except json.JSONDecodeError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to parse LLM response as JSON: {str(e)}"
+        )
+
+    return parsed_response
+
+
+def _build_analysis(parsed: dict) -> RepairAnalysis:
+    """Build a RepairAnalysis from a parsed JSON dict, normalizing fields."""
+    raw_diff = parsed.get("difficulty", "Medium")
+    if raw_diff not in ("Easy", "Medium", "Hard"):
+        raw_diff = "Medium"
+
+    return RepairAnalysis(
+        problem_identified=parsed.get("problem_identified", ""),
+        difficulty=raw_diff,
+        estimated_time=parsed.get("estimated_time", "~15 minutes"),
+        safety_warning=parsed.get("safety_warning", ""),
+        selected_materials=parsed.get("selected_materials", []),
+        steps=parsed.get("steps", []),
+        substitutions=parsed.get("substitutions", []),
+        durability_estimate=parsed.get("durability_estimate", ""),
+        warning_signs=parsed.get("warning_signs", []),
+        permanent_fix_advice=parsed.get("permanent_fix_advice", ""),
+    )
 
 
 @app.get("/")
@@ -145,116 +236,16 @@ async def analyze_repair(request: AnalyzeRepairRequest) -> RepairAnalysis:
         RepairAnalysis: Structured JSON with repair guide.
 
     Raises:
-        HTTPException: If API call fails or response is invalid JSON.
+        HTTPException: If Ollama call fails or response is invalid JSON.
     """
-    # Models to try in order — if one is rate-limited, fall back to the next.
-    DEFAULT_MODELS = [
-        "gemini-2.5-flash-lite",
-        "gemini-2.0-flash-lite",
-        "gemini-2.0-flash",
-    ]
-
-    # If client sent a preferred model, put it first in the queue
-    if request.preferred_model:
-        MODELS = [request.preferred_model] + [m for m in DEFAULT_MODELS if m != request.preferred_model]
-    else:
-        MODELS = DEFAULT_MODELS
-
-    # Prepare the prompt with both images
-    content = [
-        SYSTEM_PROMPT,
-        {
-            "mime_type": "image/jpeg",
-            "data": request.image_problem,
-        },
-        {
-            "mime_type": "image/jpeg",
-            "data": request.image_inventory,
-        },
-    ]
-
-    last_error = None
-
-    for model_name in MODELS:
-        try:
-            model = genai.GenerativeModel(model_name=model_name)
-
-            # Retry up to 2 times for transient 429 rate-limit errors
-            for attempt in range(3):
-                try:
-                    response = model.generate_content(content)
-                    break  # Success — exit retry loop
-                except Exception as retry_err:
-                    if "429" in str(retry_err) and attempt < 2:
-                        wait = (attempt + 1) * 10  # 10s, 20s backoff
-                        print(f"[SnapSolve] 429 on {model_name}, retrying in {wait}s (attempt {attempt+1}/3)")
-                        time.sleep(wait)
-                        continue
-                    raise  # Not a 429, or final attempt — propagate
-
-            # Extract and clean the response text
-            response_text = response.text.strip()
-
-            # Remove markdown code blocks if present (defensive parsing)
-            if response_text.startswith("```json"):
-                response_text = response_text[7:]
-            if response_text.startswith("```"):
-                response_text = response_text[3:]
-            if response_text.endswith("```"):
-                response_text = response_text[:-3]
-
-            response_text = response_text.strip()
-
-            # Parse the JSON response
-            try:
-                parsed_response = json.loads(response_text)
-            except json.JSONDecodeError as e:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Failed to parse LLM response as JSON: {str(e)}"
-                )
-
-            # Normalize difficulty
-            raw_diff = parsed_response.get("difficulty", "Medium")
-            if raw_diff not in ("Easy", "Medium", "Hard"):
-                raw_diff = "Medium"
-
-            analysis = RepairAnalysis(
-                problem_identified=parsed_response.get("problem_identified", ""),
-                difficulty=raw_diff,
-                estimated_time=parsed_response.get("estimated_time", "~15 minutes"),
-                safety_warning=parsed_response.get("safety_warning", ""),
-                selected_materials=parsed_response.get("selected_materials", []),
-                steps=parsed_response.get("steps", []),
-                substitutions=parsed_response.get("substitutions", []),
-                durability_estimate=parsed_response.get("durability_estimate", ""),
-                warning_signs=parsed_response.get("warning_signs", []),
-                permanent_fix_advice=parsed_response.get("permanent_fix_advice", ""),
-            )
-
-            print(f"[SnapSolve] Success with model: {model_name}")
-            return analysis
-
-        except HTTPException:
-            raise
-        except Exception as e:
-            last_error = e
-            error_str = str(e)
-            # If it's a quota / rate-limit error, try the next model
-            if "429" in error_str or "quota" in error_str.lower():
-                print(f"[SnapSolve] Quota exhausted on {model_name}, trying next model...")
-                continue
-            # For any other error, fail immediately
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error analyzing repair: {error_str}"
-            )
-
-    # All models exhausted
-    raise HTTPException(
-        status_code=429,
-        detail=f"All AI models are rate-limited. Please wait a minute and try again. Last error: {str(last_error)}"
+    parsed = _call_ollama(
+        prompt=SYSTEM_PROMPT,
+        images=[request.image_problem, request.image_inventory],
     )
+
+    analysis = _build_analysis(parsed)
+    print(f"[SnapSolve] Success with model: {OLLAMA_MODEL}")
+    return analysis
 
 
 # Run the server: uvicorn main:app --reload
@@ -266,7 +257,7 @@ class AnalyzeRepairTextRequest(BaseModel):
     """Request with text description instead of problem image."""
     text_description: str  # User's text description of the problem
     image_inventory: str   # Base64 string of available materials
-    preferred_model: Optional[str] = None
+    preferred_model: Optional[str] = None  # Kept for API compatibility (ignored)
 
 TEXT_SYSTEM_PROMPT = """You are an expert frugal mechanical engineer. The user will describe a broken object in text, and you will also receive an image of available materials.
 Generate a temporary repair guide using ONLY the materials visible in the image.
@@ -287,90 +278,19 @@ You MUST return your response entirely in valid JSON format without markdown cod
 @app.post("/api/analyze-repair-text", response_model=RepairAnalysis)
 async def analyze_repair_text(request: AnalyzeRepairTextRequest) -> RepairAnalysis:
     """Analyze a text-described problem and material photo to generate a repair guide."""
-    DEFAULT_MODELS = [
-        "gemini-2.5-flash-lite",
-        "gemini-2.0-flash-lite",
-        "gemini-2.0-flash",
-    ]
-
-    if request.preferred_model:
-        MODELS = [request.preferred_model] + [m for m in DEFAULT_MODELS if m != request.preferred_model]
-    else:
-        MODELS = DEFAULT_MODELS
-
-    content = [
-        TEXT_SYSTEM_PROMPT,
-        f"The user describes the broken object as: {request.text_description}",
-        {
-            "mime_type": "image/jpeg",
-            "data": request.image_inventory,
-        },
-    ]
-
-    last_error = None
-
-    for model_name in MODELS:
-        try:
-            model = genai.GenerativeModel(model_name=model_name)
-            for attempt in range(3):
-                try:
-                    response = model.generate_content(content)
-                    break
-                except Exception as retry_err:
-                    if "429" in str(retry_err) and attempt < 2:
-                        wait = (attempt + 1) * 10
-                        print(f"[SnapSolve] 429 on {model_name}, retrying in {wait}s (attempt {attempt+1}/3)")
-                        time.sleep(wait)
-                        continue
-                    raise
-
-            response_text = response.text.strip()
-            if response_text.startswith("```json"):
-                response_text = response_text[7:]
-            if response_text.startswith("```"):
-                response_text = response_text[3:]
-            if response_text.endswith("```"):
-                response_text = response_text[:-3]
-            response_text = response_text.strip()
-
-            try:
-                parsed_response = json.loads(response_text)
-            except json.JSONDecodeError as e:
-                raise HTTPException(status_code=500, detail=f"Failed to parse LLM response as JSON: {str(e)}")
-
-            raw_diff = parsed_response.get("difficulty", "Medium")
-            if raw_diff not in ("Easy", "Medium", "Hard"):
-                raw_diff = "Medium"
-
-            analysis = RepairAnalysis(
-                problem_identified=parsed_response.get("problem_identified", ""),
-                difficulty=raw_diff,
-                estimated_time=parsed_response.get("estimated_time", "~15 minutes"),
-                safety_warning=parsed_response.get("safety_warning", ""),
-                selected_materials=parsed_response.get("selected_materials", []),
-                steps=parsed_response.get("steps", []),
-                substitutions=parsed_response.get("substitutions", []),
-                durability_estimate=parsed_response.get("durability_estimate", ""),
-                warning_signs=parsed_response.get("warning_signs", []),
-                permanent_fix_advice=parsed_response.get("permanent_fix_advice", ""),
-            )
-            print(f"[SnapSolve] Text mode success with model: {model_name}")
-            return analysis
-
-        except HTTPException:
-            raise
-        except Exception as e:
-            last_error = e
-            error_str = str(e)
-            if "429" in error_str or "quota" in error_str.lower():
-                print(f"[SnapSolve] Quota exhausted on {model_name}, trying next model...")
-                continue
-            raise HTTPException(status_code=500, detail=f"Error analyzing repair: {error_str}")
-
-    raise HTTPException(
-        status_code=429,
-        detail=f"All AI models are rate-limited. Please wait a minute and try again. Last error: {str(last_error)}"
+    prompt = (
+        f"{TEXT_SYSTEM_PROMPT}\n\n"
+        f"The user describes the broken object as: {request.text_description}"
     )
+
+    parsed = _call_ollama(
+        prompt=prompt,
+        images=[request.image_inventory],
+    )
+
+    analysis = _build_analysis(parsed)
+    print(f"[SnapSolve] Text mode success with model: {OLLAMA_MODEL}")
+    return analysis
 
 
 # ── Feature: Alternative Repair Method ──────────────────────────────
@@ -381,23 +301,12 @@ class AlternativeRepairRequest(BaseModel):
     image_inventory: str
     original_steps: list[str]
     repair_style: str = "quick"  # "quick" or "heavy_duty"
-    preferred_model: Optional[str] = None
+    preferred_model: Optional[str] = None  # Kept for API compatibility (ignored)
 
 
 @app.post("/api/analyze-repair-alternative", response_model=RepairAnalysis)
 async def analyze_repair_alternative(request: AlternativeRepairRequest) -> RepairAnalysis:
     """Generate an alternative repair approach using a different technique."""
-    DEFAULT_MODELS = [
-        "gemini-2.5-flash-lite",
-        "gemini-2.0-flash-lite",
-        "gemini-2.0-flash",
-    ]
-
-    if request.preferred_model:
-        MODELS = [request.preferred_model] + [m for m in DEFAULT_MODELS if m != request.preferred_model]
-    else:
-        MODELS = DEFAULT_MODELS
-
     style_instruction = (
         "Prioritize SPEED over durability — the quickest possible fix."
         if request.repair_style == "quick"
@@ -425,63 +334,14 @@ You MUST return your response entirely in valid JSON format without markdown cod
   "permanent_fix_advice": "What to do for a permanent fix"
 }}"""
 
-    content = [
-        alt_prompt,
-        {"mime_type": "image/jpeg", "data": request.image_problem},
-        {"mime_type": "image/jpeg", "data": request.image_inventory},
-    ]
+    parsed = _call_ollama(
+        prompt=alt_prompt,
+        images=[request.image_problem, request.image_inventory],
+    )
 
-    last_error = None
-    for model_name in MODELS:
-        try:
-            model = genai.GenerativeModel(model_name=model_name)
-            for attempt in range(3):
-                try:
-                    response = model.generate_content(content)
-                    break
-                except Exception as retry_err:
-                    if "429" in str(retry_err) and attempt < 2:
-                        wait = (attempt + 1) * 10
-                        time.sleep(wait)
-                        continue
-                    raise
-
-            response_text = response.text.strip()
-            if response_text.startswith("```json"):
-                response_text = response_text[7:]
-            if response_text.startswith("```"):
-                response_text = response_text[3:]
-            if response_text.endswith("```"):
-                response_text = response_text[:-3]
-            response_text = response_text.strip()
-
-            parsed = json.loads(response_text)
-            raw_diff = parsed.get("difficulty", "Medium")
-            if raw_diff not in ("Easy", "Medium", "Hard"):
-                raw_diff = "Medium"
-
-            return RepairAnalysis(
-                problem_identified=parsed.get("problem_identified", ""),
-                difficulty=raw_diff,
-                estimated_time=parsed.get("estimated_time", "~15 minutes"),
-                safety_warning=parsed.get("safety_warning", ""),
-                selected_materials=parsed.get("selected_materials", []),
-                steps=parsed.get("steps", []),
-                substitutions=parsed.get("substitutions", []),
-                durability_estimate=parsed.get("durability_estimate", ""),
-                warning_signs=parsed.get("warning_signs", []),
-                permanent_fix_advice=parsed.get("permanent_fix_advice", ""),
-            )
-
-        except HTTPException:
-            raise
-        except Exception as e:
-            last_error = e
-            if "429" in str(e) or "quota" in str(e).lower():
-                continue
-            raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
-
-    raise HTTPException(status_code=429, detail=f"All models rate-limited. Last error: {str(last_error)}")
+    analysis = _build_analysis(parsed)
+    print(f"[SnapSolve] Alternative repair success with model: {OLLAMA_MODEL}")
+    return analysis
 
 
 # ── Feature: Saved Toolbox ──────────────────────────────────────
@@ -501,3 +361,137 @@ async def get_toolbox(user: dict = Depends(verify_token)):
     """Get the saved toolbox photo for the authenticated user."""
     image = get_toolbox_image(user["user_id"])
     return {"image": image}
+
+
+# ── SSE Streaming Endpoints ─────────────────────────────────────────
+#
+# These endpoints stream tokens as Server-Sent Events in real time.
+# Format:  data: <token_text>\n\n
+# Final:   data: [DONE]\n\n
+# Error:   data: [ERROR] <message>\n\n
+#
+# The original non-streaming endpoints above are preserved for
+# backward compatibility.
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _stream_ollama(prompt: str, images: list[str]):
+    """
+    Generator that streams tokens from Ollama via SSE format.
+
+    Yields SSE-formatted strings: 'data: <token>\n\n'
+    Ends with 'data: [DONE]\n\n' on success.
+    Yields 'data: [ERROR] <msg>\n\n' on failure.
+    """
+    try:
+        stream = ollama_client.chat(
+            model=OLLAMA_MODEL,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                    "images": images,
+                }
+            ],
+            stream=True,
+            keep_alive=-1,
+        )
+        for chunk in stream:
+            token = chunk["message"]["content"]
+            if token:
+                yield f"data: {token}\n\n"
+        yield "data: [DONE]\n\n"
+    except Exception as e:
+        error_str = str(e)
+        if any(kw in error_str.lower() for kw in [
+            "connect", "refused", "unreachable", "timeout",
+            "connection", "httpx", "could not", "failed to"
+        ]):
+            yield (
+                f"data: [ERROR] Ollama service is not running or unreachable. "
+                f"Please ensure Ollama is running at {OLLAMA_BASE_URL}.\n\n"
+            )
+        else:
+            yield f"data: [ERROR] {error_str}\n\n"
+
+
+@app.post("/api/analyze-repair-stream")
+async def analyze_repair_stream(request: AnalyzeRepairRequest):
+    """Stream repair analysis tokens via SSE (real-time)."""
+    return StreamingResponse(
+        _stream_ollama(
+            prompt=SYSTEM_PROMPT,
+            images=[request.image_problem, request.image_inventory],
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.post("/api/analyze-repair-text-stream")
+async def analyze_repair_text_stream(request: AnalyzeRepairTextRequest):
+    """Stream text-mode repair analysis tokens via SSE (real-time)."""
+    prompt = (
+        f"{TEXT_SYSTEM_PROMPT}\n\n"
+        f"The user describes the broken object as: {request.text_description}"
+    )
+    return StreamingResponse(
+        _stream_ollama(
+            prompt=prompt,
+            images=[request.image_inventory],
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.post("/api/analyze-repair-alternative-stream")
+async def analyze_repair_alternative_stream(request: AlternativeRepairRequest):
+    """Stream alternative repair analysis tokens via SSE (real-time)."""
+    style_instruction = (
+        "Prioritize SPEED over durability — the quickest possible fix."
+        if request.repair_style == "quick"
+        else "Prioritize DURABILITY over ease — the most long-lasting fix."
+    )
+
+    alt_prompt = f"""You are an expert frugal mechanical engineer. You previously gave a repair guide for this broken object.
+The user wants a COMPLETELY DIFFERENT approach. Here were the original steps (DO NOT repeat these):
+{chr(10).join(f'- {s}' for s in request.original_steps)}
+
+Generate an alternative repair using the same available materials but a DIFFERENT technique.
+Style: {style_instruction}
+
+You MUST return your response entirely in valid JSON format without markdown code blocks. Use this exact schema:
+{{
+  "problem_identified": "Short description of the structural failure.",
+  "difficulty": "Easy" or "Medium" or "Hard",
+  "estimated_time": "Estimated time to complete the repair",
+  "safety_warning": "One crucial safety rule.",
+  "selected_materials": ["item 1", "item 2"],
+  "steps": ["Step 1", "Step 2"],
+  "substitutions": [{{"original": "material", "substitute": "alternative", "notes": "trade-off"}}],
+  "durability_estimate": "How long this fix should last",
+  "warning_signs": ["Sign to watch"],
+  "permanent_fix_advice": "What to do for a permanent fix"
+}}"""
+
+    return StreamingResponse(
+        _stream_ollama(
+            prompt=alt_prompt,
+            images=[request.image_problem, request.image_inventory],
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

@@ -204,14 +204,23 @@ export async function setPreferredModel(model: string): Promise<void> {
 
 // Available models the user can choose from
 export const AVAILABLE_MODELS = [
-  { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', tag: 'Fastest' },
-  { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', tag: '' },
-  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', tag: '' },
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', tag: 'Recommended' },
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', tag: 'Best quality' },
+  { id: 'qwen2.5vl:3b', name: 'Qwen 2.5 VL', tag: 'Local' },
 ];
 
 // ── API Client ──────────────────────────────────────────────────────
+
+/**
+ * Parse accumulated SSE text into a RepairAnalysis object.
+ * Handles markdown code fences and leading/trailing whitespace.
+ */
+function _cleanAndParseJSON(raw: string): RepairAnalysis {
+  let text = raw.trim();
+  if (text.startsWith('```json')) text = text.slice(7);
+  if (text.startsWith('```')) text = text.slice(3);
+  if (text.endsWith('```')) text = text.slice(0, -3);
+  text = text.trim();
+  return JSON.parse(text) as RepairAnalysis;
+}
 
 class SnapSolveAPI {
   private client: AxiosInstance;
@@ -225,6 +234,8 @@ class SnapSolveAPI {
       headers: { 'Content-Type': 'application/json' },
     });
   }
+
+  // ── Non-streaming methods (preserved for backward compat) ──────────
 
   async analyzeRepair(
     imageProblem: string,
@@ -279,28 +290,7 @@ class SnapSolveAPI {
     }
   }
 
-  private handleError(error: unknown): never {
-    const isNetworkError =
-      error instanceof Error &&
-      (error.message.includes('Network Error') ||
-        error.message.includes('ECONNREFUSED') ||
-        error.message.includes('ENOTFOUND') ||
-        error.message.includes('timeout'));
-
-    if (isNetworkError) {
-      throw new Error('Can\'t reach the server. Check that the backend is running.');
-    }
-
-    if (axios.isAxiosError(error)) {
-      const status = error.response?.status || 'unknown';
-      const detail = error.response?.data?.detail || error.message;
-      throw new Error(`Server error (${status}): ${detail}`);
-    }
-
-    throw error as Error;
-  }
-
-  /** V2 Feature 3: Alternative repair method */
+  /** V2 Feature 3: Alternative repair method (non-streaming) */
   async analyzeRepairAlternative(
     imageProblem: string,
     imageInventory: string,
@@ -324,6 +314,288 @@ class SnapSolveAPI {
       throw error;
     }
   }
+
+  // ── SSE Streaming methods ─────────────────────────────────────────
+  //
+  // React Native's fetch implementation does not support response.body.getReader()
+  // or ReadableStream. We use XMLHttpRequest with incremental responseText reading
+  // for reliable SSE streaming on mobile (iOS/Android) and Web.
+
+  /**
+   * Internal: consume an SSE stream using XMLHttpRequest for React Native compatibility.
+   */
+  private _postSSE(
+    url: string,
+    payload: object,
+    onToken: (token: string) => void,
+    onDone: (analysis: RepairAnalysis) => void,
+    onError: (message: string) => void
+  ): void {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+
+    let processedLength = 0;
+    let accumulated = '';
+    let lineBuffer = '';
+    let isFinished = false;
+
+    const processChunk = () => {
+      const newText = xhr.responseText.slice(processedLength);
+      if (!newText) return;
+      processedLength = xhr.responseText.length;
+
+      lineBuffer += newText;
+
+      // Extract complete lines separated by \n
+      const lines = lineBuffer.split('\n');
+      // Keep incomplete last line in the buffer
+      lineBuffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data: ')) continue;
+
+        const payloadText = trimmed.slice(6); // strip 'data: '
+
+        if (payloadText === '[DONE]') {
+          if (!isFinished) {
+            isFinished = true;
+            try {
+              const analysis = _cleanAndParseJSON(accumulated);
+              onDone(analysis);
+            } catch (parseErr) {
+              onError(
+                `Failed to parse AI response as JSON: ${parseErr instanceof Error ? parseErr.message : 'Unknown error'}`
+              );
+            }
+          }
+          return;
+        }
+
+        if (payloadText.startsWith('[ERROR]')) {
+          if (!isFinished) {
+            isFinished = true;
+            const errorMsg = payloadText.slice(8).trim();
+            if (
+              errorMsg.toLowerCase().includes('ollama') ||
+              errorMsg.toLowerCase().includes('unreachable')
+            ) {
+              onError(
+                'Unable to reach the local model service. Please ensure Ollama is running on your server.'
+              );
+            } else {
+              onError(errorMsg || 'Unknown streaming error');
+            }
+          }
+          return;
+        }
+
+        // Accumulate raw token text and fire callback
+        accumulated += payloadText;
+        onToken(payloadText);
+      }
+    };
+
+    xhr.onprogress = () => {
+      processChunk();
+    };
+
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState === 3 || xhr.readyState === 4) {
+        processChunk();
+      }
+
+      if (xhr.readyState === 4) {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          if (!isFinished) {
+            // Process any remaining data in lineBuffer
+            if (lineBuffer.trim().startsWith('data: ')) {
+              const payloadText = lineBuffer.trim().slice(6);
+              if (payloadText === '[DONE]') {
+                isFinished = true;
+                try {
+                  onDone(_cleanAndParseJSON(accumulated));
+                } catch (parseErr) {
+                  onError(`Failed to parse AI response as JSON: ${parseErr instanceof Error ? parseErr.message : 'Unknown error'}`);
+                }
+                return;
+              } else if (!payloadText.startsWith('[ERROR]')) {
+                accumulated += payloadText;
+                onToken(payloadText);
+              }
+            }
+
+            isFinished = true;
+            if (accumulated.trim()) {
+              try {
+                const analysis = _cleanAndParseJSON(accumulated);
+                onDone(analysis);
+              } catch (parseErr) {
+                onError(
+                  `Failed to parse AI response as JSON: ${parseErr instanceof Error ? parseErr.message : 'Unknown error'}`
+                );
+              }
+            } else {
+              onError('Stream ended unexpectedly without a complete response.');
+            }
+          }
+        } else if (!isFinished) {
+          isFinished = true;
+          let detail = `Server error (${xhr.status})`;
+          try {
+            const body = JSON.parse(xhr.responseText);
+            detail = body.detail || detail;
+          } catch { /* ignore */ }
+          if (
+            typeof detail === 'string' &&
+            (detail.toLowerCase().includes('ollama') || detail.toLowerCase().includes('unreachable'))
+          ) {
+            onError(
+              'Unable to reach the local model service. Please ensure Ollama is running on your server.'
+            );
+          } else {
+            onError(detail);
+          }
+        }
+      }
+    };
+
+    xhr.onerror = () => {
+      if (!isFinished) {
+        isFinished = true;
+        onError('Can\'t reach the server. Check that the backend is running.');
+      }
+    };
+
+    xhr.ontimeout = () => {
+      if (!isFinished) {
+        isFinished = true;
+        onError('Request timed out while waiting for server response.');
+      }
+    };
+
+    xhr.timeout = 90000;
+    xhr.send(JSON.stringify(payload));
+  }
+
+  /** Stream repair analysis (camera mode) with real-time token callbacks. */
+  async analyzeRepairStream(
+    imageProblem: string,
+    imageInventory: string,
+    onToken: (token: string) => void,
+    onDone: (analysis: RepairAnalysis) => void,
+    onError: (message: string) => void
+  ): Promise<void> {
+    if (USE_MOCK) {
+      onDone(MOCK_RESPONSE);
+      return;
+    }
+
+    const preferredModel = await getPreferredModel();
+    const payload: AnalyzeRepairRequest = {
+      image_problem: imageProblem,
+      image_inventory: imageInventory,
+      ...(preferredModel && { preferred_model: preferredModel }),
+    };
+    console.log(`[API] Streaming → ${this.baseURL}/api/analyze-repair-stream`);
+    this._postSSE(
+      `${this.baseURL}/api/analyze-repair-stream`,
+      payload,
+      onToken,
+      onDone,
+      onError
+    );
+  }
+
+  /** Stream repair analysis (text mode) with real-time token callbacks. */
+  async analyzeRepairTextStream(
+    textDescription: string,
+    imageInventory: string,
+    onToken: (token: string) => void,
+    onDone: (analysis: RepairAnalysis) => void,
+    onError: (message: string) => void
+  ): Promise<void> {
+    if (USE_MOCK) {
+      onDone(MOCK_RESPONSE);
+      return;
+    }
+
+    const preferredModel = await getPreferredModel();
+    const payload: AnalyzeRepairRequest = {
+      text_description: textDescription,
+      image_inventory: imageInventory,
+      ...(preferredModel && { preferred_model: preferredModel }),
+    };
+    console.log(`[API] Text stream → ${this.baseURL}/api/analyze-repair-text-stream`);
+    this._postSSE(
+      `${this.baseURL}/api/analyze-repair-text-stream`,
+      payload,
+      onToken,
+      onDone,
+      onError
+    );
+  }
+
+  /** Stream alternative repair analysis with real-time token callbacks. */
+  async analyzeRepairAlternativeStream(
+    imageProblem: string,
+    imageInventory: string,
+    originalSteps: string[],
+    repairStyle: 'quick' | 'heavy_duty' = 'quick',
+    onToken: (token: string) => void,
+    onDone: (analysis: RepairAnalysis) => void,
+    onError: (message: string) => void
+  ): Promise<void> {
+    const preferredModel = await getPreferredModel();
+    const payload = {
+      image_problem: imageProblem,
+      image_inventory: imageInventory,
+      original_steps: originalSteps,
+      repair_style: repairStyle,
+      ...(preferredModel && { preferred_model: preferredModel }),
+    };
+    console.log(`[API] Alt stream → ${this.baseURL}/api/analyze-repair-alternative-stream`);
+    this._postSSE(
+      `${this.baseURL}/api/analyze-repair-alternative-stream`,
+      payload,
+      onToken,
+      onDone,
+      onError
+    );
+  }
+
+  private handleError(error: unknown): never {
+    const isNetworkError =
+      error instanceof Error &&
+      (error.message.includes('Network Error') ||
+        error.message.includes('ECONNREFUSED') ||
+        error.message.includes('ENOTFOUND') ||
+        error.message.includes('timeout'));
+
+    if (isNetworkError) {
+      throw new Error('Can\'t reach the server. Check that the backend is running.');
+    }
+
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status || 'unknown';
+      const detail = error.response?.data?.detail || error.message;
+
+      if (
+        status === 500 &&
+        typeof detail === 'string' &&
+        (detail.toLowerCase().includes('ollama') || detail.toLowerCase().includes('unreachable'))
+      ) {
+        throw new Error(
+          'Unable to reach the local model service. Please ensure Ollama is running on your server.'
+        );
+      }
+
+      throw new Error(`Server error (${status}): ${detail}`);
+    }
+
+    throw error as Error;
+  }
 }
 
 export const api = new SnapSolveAPI(API_BASE_URL);
@@ -345,3 +617,4 @@ const MOCK_RESPONSE: RepairAnalysis = {
 };
 
 export type { RepairAnalysis, AnalyzeRepairRequest };
+

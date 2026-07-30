@@ -40,7 +40,7 @@ import { ThemedText } from '../../components/ThemedText';
 export default function SettingsScreen() {
   const { colors, isDark, toggle } = useTheme();
   const { user, logout } = useAuth();
-  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash-lite');
+  const [selectedModel, setSelectedModel] = useState('qwen2.5vl:3b');
   const [hasToolbox, setHasToolbox] = useState(false);
 
   useEffect(() => {
@@ -231,7 +231,7 @@ export default function SettingsScreen() {
               <Cpu size={18} color={colors.textSecondary} strokeWidth={2} />
               <ThemedText weight="bold" style={[s.rowText, { color: colors.text }]}>Engine</ThemedText>
             </View>
-            <ThemedText variant="secondary" style={s.rowValue}>Google Gemini</ThemedText>
+            <ThemedText variant="secondary" style={s.rowValue}>Qwen 2.5 VL (Local)</ThemedText>
           </View>
         </View>
 

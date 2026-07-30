@@ -208,7 +208,7 @@ export default function HomeScreen() {
         </Animated.View>
 
         <View style={s.footer}>
-          <ThemedText weight="medium" variant="muted" style={s.footerText}>Powered by Google Gemini AI</ThemedText>
+          <ThemedText weight="medium" variant="muted" style={s.footerText}>Powered by Qwen 2.5 VL (Local)</ThemedText>
         </View>
       </ScrollView>
     </SafeAreaView>

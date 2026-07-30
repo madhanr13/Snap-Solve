@@ -1,10 +1,14 @@
 /**
- * Loading Spinner — rotating messages, pulsing ring, and smooth animations.
- * Provides personality during the AI analysis wait time.
+ * Loading Spinner — rotating messages, pulsing ring, smooth animations,
+ * and optional live streaming text preview.
+ *
+ * When `streamingText` is provided, the raw AI tokens are shown in a
+ * scrollable mini-preview with a blinking cursor, replacing the
+ * rotating fun messages once streaming starts.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, Animated, Easing, ActivityIndicator } from 'react-native';
+import { View, ScrollView, StyleSheet, Animated, Easing, ActivityIndicator } from 'react-native';
 import { AppLogo } from './AppLogo';
 import { useTheme } from '../utils/ThemeContext';
 import { ThemedText } from './ThemedText';
@@ -25,11 +29,14 @@ const FUN_MESSAGES = [
 interface Props {
   visible: boolean;
   message?: string;
+  /** Raw streaming tokens from SSE — displayed as a live preview when non-empty. */
+  streamingText?: string;
 }
 
-export function LoadingSpinner({ visible, message }: Props) {
+export function LoadingSpinner({ visible, message, streamingText }: Props) {
   const { colors, isDark } = useTheme();
   const [msgIndex, setMsgIndex] = useState(0);
+  const streamScrollRef = useRef<ScrollView>(null);
 
   // Wrench rotation
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -44,6 +51,8 @@ export function LoadingSpinner({ visible, message }: Props) {
   // Pulse ring
   const pulseScale = useRef(new Animated.Value(1)).current;
   const pulseOpacity = useRef(new Animated.Value(0.5)).current;
+  // Cursor blink
+  const cursorOpacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (!visible) return;
@@ -84,7 +93,16 @@ export function LoadingSpinner({ visible, message }: Props) {
     );
     pulse.start();
 
-    // Cycle messages
+    // Cursor blink
+    const cursorBlink = Animated.loop(
+      Animated.sequence([
+        Animated.timing(cursorOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+        Animated.timing(cursorOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+      ])
+    );
+    cursorBlink.start();
+
+    // Cycle messages (only when not streaming)
     const interval = setInterval(() => {
       Animated.timing(msgFade, { toValue: 0, duration: 250, useNativeDriver: true }).start(() => {
         setMsgIndex((prev) => (prev + 1) % FUN_MESSAGES.length);
@@ -96,9 +114,17 @@ export function LoadingSpinner({ visible, message }: Props) {
       rotate.stop();
       dotAnims.forEach((a) => a.stop());
       pulse.stop();
+      cursorBlink.stop();
       clearInterval(interval);
     };
   }, [visible]);
+
+  // Auto-scroll to bottom when streaming text updates
+  useEffect(() => {
+    if (streamingText && streamScrollRef.current) {
+      streamScrollRef.current.scrollToEnd({ animated: false });
+    }
+  }, [streamingText]);
 
   if (!visible) return null;
 
@@ -106,6 +132,8 @@ export function LoadingSpinner({ visible, message }: Props) {
     inputRange: [0, 1],
     outputRange: ['-30deg', '30deg'],
   });
+
+  const isStreaming = !!streamingText;
 
   return (
     <View style={[s.bg, { backgroundColor: isDark ? 'rgba(10,13,24,0.92)' : 'rgba(248,250,252,0.92)' }]}>
@@ -137,13 +165,36 @@ export function LoadingSpinner({ visible, message }: Props) {
           ))}
         </View>
 
-        {/* Rotating message */}
-        <Animated.View style={{ opacity: msgFade, minHeight: 28, justifyContent: 'center' }}>
-          <ThemedText weight="semibold" style={[s.msg, { color: colors.text }]}>
-            {message || FUN_MESSAGES[msgIndex]}
-          </ThemedText>
-        </Animated.View>
-        <ThemedText variant="muted" style={s.hint}>This will take just a moment</ThemedText>
+        {isStreaming ? (
+          /* ── Streaming live preview ── */
+          <>
+            <ThemedText weight="semibold" style={[s.msg, { color: colors.accent, marginBottom: 8 }]}>
+              AI is generating...
+            </ThemedText>
+            <View style={[s.streamBox, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+              <ScrollView
+                ref={streamScrollRef}
+                style={s.streamScroll}
+                showsVerticalScrollIndicator={false}
+              >
+                <ThemedText style={[s.streamText, { color: colors.textMuted }]}>
+                  {streamingText}
+                  <Animated.Text style={{ opacity: cursorOpacity, color: colors.accent }}>▌</Animated.Text>
+                </ThemedText>
+              </ScrollView>
+            </View>
+          </>
+        ) : (
+          /* ── Rotating fun message ── */
+          <>
+            <Animated.View style={{ opacity: msgFade, minHeight: 28, justifyContent: 'center' }}>
+              <ThemedText weight="semibold" style={[s.msg, { color: colors.text }]}>
+                {message || FUN_MESSAGES[msgIndex]}
+              </ThemedText>
+            </Animated.View>
+            <ThemedText variant="muted" style={s.hint}>Local AI may take a moment — hang tight</ThemedText>
+          </>
+        )}
       </View>
     </View>
   );
@@ -174,4 +225,22 @@ const s = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4 },
   msg: { fontSize: 16, textAlign: 'center', paddingHorizontal: 10 },
   hint: { fontSize: 12, marginTop: 8, opacity: 0.7 },
+
+  // Streaming preview
+  streamBox: {
+    width: '100%',
+    maxHeight: 80,
+    borderRadius: 10,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  streamScroll: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  streamText: {
+    fontSize: 11,
+    lineHeight: 16,
+    fontFamily: 'monospace',
+  },
 });
