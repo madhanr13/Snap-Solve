@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Image,
   ActivityIndicator,
   Animated,
 } from 'react-native';
@@ -38,7 +37,6 @@ export default function InventoryScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [flashEnabled, setFlashEnabled] = useState(false);
-  const [problemThumb, setProblemThumb] = useState<string | null>(null);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -56,13 +54,6 @@ export default function InventoryScreen() {
   useEffect(() => {
     if (!permission?.granted && permission?.canAskAgain) requestPermission();
   }, [permission, requestPermission]);
-
-  // Load previously captured problem image
-  useEffect(() => {
-    AsyncStorage.getItem('problemImageUri').then((uri) => {
-      if (uri) setProblemThumb(uri);
-    });
-  }, []);
 
   if (!permission?.granted) {
     return (
@@ -196,18 +187,6 @@ export default function InventoryScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Problem thumbnail reminder */}
-            {problemThumb && (
-              <View style={styles.thumbWrap}>
-                <View style={styles.thumbContainer}>
-                  <Image source={{ uri: problemThumb }} style={styles.thumb} resizeMode="cover" />
-                  <View style={styles.thumbLabelBox}>
-                    <ThemedText weight="semibold" style={styles.thumbLabel}>Damage ✓</ThemedText>
-                  </View>
-                </View>
-              </View>
-            )}
-
             <View style={styles.vf}>
               <View style={[styles.c, styles.cTL, { borderColor: colors.accent }]} />
               <View style={[styles.c, styles.cTR, { borderColor: colors.accent }]} />
@@ -274,15 +253,6 @@ const styles = StyleSheet.create({
   },
 
   flashBtn: { backgroundColor: 'rgba(15,23,42,0.6)', borderRadius: 20, width: 40, height: 40, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
-
-  thumbWrap: { position: 'absolute', top: 86, right: 20, zIndex: 10 },
-  thumbContainer: {
-    alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 3
-  },
-  thumb: { width: 56, height: 56, borderRadius: 8, borderWidth: 2, borderColor: '#fff' },
-  thumbLabelBox: { marginTop: 4, backgroundColor: 'rgba(15,23,42,0.85)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  thumbLabel: { fontSize: 9, color: '#fff' },
 
   vf: { width: '80%', aspectRatio: 3 / 4, alignSelf: 'center' },
   c: { position: 'absolute', width: 32, height: 32 },

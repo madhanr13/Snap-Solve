@@ -348,10 +348,8 @@ You MUST return your response entirely in valid JSON format without markdown cod
 
 @app.post("/api/toolbox")
 async def save_toolbox(data: dict, user: dict = Depends(verify_token)):
-    """Save a toolbox photo for the authenticated user."""
+    """Save or clear a toolbox photo for the authenticated user."""
     image = data.get("image")
-    if not image:
-        raise HTTPException(status_code=400, detail="No image provided")
     save_toolbox_image(user["user_id"], image)
     return {"status": "success"}
 

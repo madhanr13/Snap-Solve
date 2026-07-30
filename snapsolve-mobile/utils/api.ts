@@ -128,6 +128,24 @@ export async function clearHistory(): Promise<void> {
   await AsyncStorage.removeItem(HISTORY_KEY);
 }
 
+// ── User Session Cleanup ──────────────────────────────────────────────
+
+export async function clearUserSessionData(): Promise<void> {
+  try {
+    await AsyncStorage.multiRemove([
+      '@snapsolve_toolbox',
+      '@snapsolve_history',
+      'repairAnalysis',
+      'inventoryImageBase64',
+      'problemImageBase64',
+      'problemImageUri',
+      'problemTextDescription',
+    ]);
+  } catch (e) {
+    console.error('[Session] Failed to clear user session data:', e);
+  }
+}
+
 // ── Saved Toolbox ───────────────────────────────────────────────────
 
 const TOOLBOX_KEY = '@snapsolve_toolbox';
@@ -148,11 +166,40 @@ export async function saveToolbox(base64Image: string): Promise<void> {
 }
 
 export async function getToolbox(): Promise<string | null> {
+  // If user is logged in, fetch user's specific toolbox from backend
+  const token = await AsyncStorage.getItem('@snapsolve_auth_token');
+  if (token) {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/toolbox`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.data && res.data.image) {
+        await AsyncStorage.setItem(TOOLBOX_KEY, res.data.image);
+        return res.data.image;
+      } else {
+        // User has no saved toolbox on backend — clear local cache for this session
+        await AsyncStorage.removeItem(TOOLBOX_KEY);
+        return null;
+      }
+    } catch (e) {
+      console.error('[Toolbox] Failed to fetch user toolbox from backend:', e);
+    }
+  }
   return AsyncStorage.getItem(TOOLBOX_KEY);
 }
 
 export async function clearToolbox(): Promise<void> {
   await AsyncStorage.removeItem(TOOLBOX_KEY);
+  const token = await AsyncStorage.getItem('@snapsolve_auth_token');
+  if (token) {
+    try {
+      await axios.post(`${API_BASE_URL}/api/toolbox`, { image: null }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (e) {
+      console.error('[Toolbox] Failed to clear backend toolbox:', e);
+    }
+  }
 }
 
 // ── Repair Stats ────────────────────────────────────────────────────

@@ -6,7 +6,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { API_BASE_URL } from './api';
+import { API_BASE_URL, clearUserSessionData } from './api';
 
 const AUTH_TOKEN_KEY = '@snapsolve_auth_token';
 const AUTH_USER_KEY = '@snapsolve_auth_user';
@@ -65,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
       });
       const { token: jwt, user: userData } = res.data;
+      await clearUserSessionData();
       await AsyncStorage.setItem(AUTH_TOKEN_KEY, jwt);
       await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(userData));
       setToken(jwt);
@@ -86,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         display_name: displayName || username,
       });
       const { token: jwt, user: userData } = res.data;
+      await clearUserSessionData();
       await AsyncStorage.setItem(AUTH_TOKEN_KEY, jwt);
       await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(userData));
       setToken(jwt);
@@ -100,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    await clearUserSessionData();
     await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
     await AsyncStorage.removeItem(AUTH_USER_KEY);
     setToken(null);
